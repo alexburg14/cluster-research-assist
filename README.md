@@ -12,7 +12,10 @@ is one configuration of it.
 pip install .
 ```
 
-Requires Python 3.11 or newer.
+Requires Python 3.11 or newer. The query encoder's weights are a Git LFS
+object, so a source checkout needs `git lfs install` before cloning (or
+`git lfs pull` after). Without them semantic search is off and everything else
+works.
 
 ## Run
 
@@ -57,18 +60,16 @@ cra library manifest       # refresh checksums and counts
 ## Semantic search
 
 The library ships the paper vectors, so ranking needs no model. Only the query
-has to be encoded, and that one forward pass runs on onnxruntime rather than
-torch, which keeps a CUDA-capable tensor library out of an image that would
-never use it:
-
-```bash
-cra encoder fetch           # 127 MB into CRA_ENCODER_PATH
-```
+has to be encoded, by BAAI/bge-small-en-v1.5, whose weights ship with the
+package: 67 MB in half precision, which holds every one of its weights exactly.
+The forward pass is written in numpy, about ten milliseconds for a query,
+so neither an inference runtime nor a tokenizer library is installed.
+`developer/make_encoder.py` rebuilds the weights from the published model.
 
 The model must be the one the library was built with; a mismatch is refused,
 because two models' vectors are not comparable even when the widths agree.
-Leaving `CRA_ENCODER_PATH` empty turns semantic search off and leaves keyword
-search, the publication map and everything else working.
+`CRA_QUERY_ENCODER=false` turns semantic search off and saves the encoder's
+memory; keyword search, the publication map and everything else keep working.
 
 ## Placing a DOI on the map
 
@@ -266,13 +267,19 @@ only then does it receive the secrets and run. It is a required status check,
 so a pull request cannot be merged before that.
 `developer/set_branch_protection.sh` configures the required checks.
 
+Tests mirror the package: the tests of `src/cra/app/web/factory.py` are
+`tests/app/web/test_factory.py`. Shared fixtures are in `tests/conftest.py`,
+stand-ins for models and services in `tests/fakes.py`.
+
 Conventions: conventional commits, no `os.environ` reads outside
 `cra.config.settings`, no module-level per-user state, no two files with the
-same basename, logging never `print`. `tests/test_layout.py` enforces the
-layout rules and the import layering: `cra.core` (library, retrieval,
-connectors, tools) never imports `cra.assistant` (llm, chat, mcpclient) or
-`cra.app` (web, auth, history, mcpserver, viz), and `cra.assistant` never
-imports `cra.app`.
+same basename, logging never `print`. Dependencies stay few: where a package
+would serve only one function, that function is written here instead, as the
+model client, BM25 and the query encoder are. `tests/test_layout.py` enforces
+the layout rules, the test tree and the import layering: `cra.core` (library,
+retrieval, connectors, tools) never imports `cra.assistant` (llm, chat,
+mcpclient) or `cra.app` (web, auth, history, mcpserver, viz), and
+`cra.assistant` never imports `cra.app`.
 
 ## License
 

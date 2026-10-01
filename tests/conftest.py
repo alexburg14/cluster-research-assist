@@ -74,6 +74,10 @@ async def session_user(client) -> str | None:
     return (await response.get_json())["user"]
 
 
+async def call_tool(registry, ctx, tool_name: str, /, **arguments):
+    return await registry.call(tool_name, arguments, ctx)
+
+
 def make_settings(tmp_path: Path, **overrides) -> Settings:
     values = {
         "library_path": TOY_LIBRARY,
@@ -81,6 +85,9 @@ def make_settings(tmp_path: Path, **overrides) -> Settings:
         "history_auto_migrate": True,
         "cookie_secure": False,
         "log_dir": tmp_path / "logs",
+        # the real encoder is tested on its own; elsewhere it would only make
+        # the tool list depend on whether Git LFS fetched the weights
+        "query_encoder": False,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)

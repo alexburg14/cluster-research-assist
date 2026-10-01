@@ -1,0 +1,90 @@
+"""Naming a conversation."""
+
+import pytest
+from conftest import make_settings
+
+from cra.assistant.chat import title as title_
+
+
+class Answering:
+    """A client that returns one non-streamed completion."""
+
+    def __init__(self, content):
+        self.content = content
+        self.calls: list[dict] = []
+
+    async def complete(self, request, timeout_s=None):
+        self.calls.append(request)
+        if isinstance(self.content, Exception):
+            raise self.content
+        return {"choices": [{"message": {"content": self.content}}]}
+
+
+@pytest.fixture
+def settings(tmp_path):
+    return make_settings(tmp_path, llm_api_key="a-key")
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("Perovskite stability", "Perovskite stability"),
+        ('  "Battery ageing models."  ', "Battery ageing models"),
+        (
+            "Collaborators for battery testing\nAnother line",
+            "Collaborators for battery testing",
+        ),
+        ("x" * 200, "x" * title_.MAX_CHARS),
+        ("   ", ""),
+    ],
+)
+def test_a_model_answer_becomes_a_title(raw, expected):
+    assert title_.tidy(raw) == expected
+
+
+async def test_the_model_is_asked_briefly(settings):
+    client = Answering("Perovskite stability under light")
+    suggested = await title_.suggest(
+        client, settings, "m", "which papers?", "These two."
+    )
+    assert suggested == "Perovskite stability under light"
+    sent = client.calls[0]
+    assert sent["max_tokens"] == title_.MAX_TOKENS
+    assert "tools" not in sent, "naming a conversation needs no tools"
+    assert "which papers?" in sent["messages"][1]["content"]
+
+
+async def test_a_failure_leaves_the_fallback(settings):
+    client = Answering(RuntimeError("down"))
+    assert await title_.suggest(client, settings, "m", "q", "a") == ""
+
+
+async def test_without_an_api_key_nothing_is_asked(tmp_path):
+    client = Answering("A title")
+    assert await title_.suggest(client, make_settings(tmp_path), "m", "q", "a") == ""
+    assert client.calls == []
+
+
+def test_the_fallback_is_the_question_itself():
+    assert (
+        title_.fallback("  Which papers cover perovskites?  ")
+        == "Which papers cover perovskites?"
+    )
+    assert len(title_.fallback("x" * 500)) == title_.FALLBACK_CHARS
+
+
+async def test_the_least_thinking_is_asked_for_where_it_can_be(tmp_path):
+    """Measured on a reasoning model: 14 seconds without it, under one with."""
+    client = Answering("A title")
+    openrouter = make_settings(
+        tmp_path,
+        llm_api_key="k",
+        llm_provider="openrouter",
+        llm_base_url="https://openrouter.ai/api/v1",
+    )
+    await title_.suggest(client, openrouter, "m", "q", "a")
+    assert client.calls[0]["reasoning"] == {"effort": "minimal"}
+
+    plain = make_settings(tmp_path, llm_api_key="k", llm_provider="gwdg")
+    await title_.suggest(client, plain, "m", "q", "a")
+    assert "reasoning" not in client.calls[1], "another gateway may reject the field"
