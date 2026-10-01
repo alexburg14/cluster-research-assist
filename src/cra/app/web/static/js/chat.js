@@ -315,7 +315,7 @@ export function chatView(store) {
       function renderEmpty() {
         const e = el("div", "landing");
         const head = el("div", "landing-head");
-        head.append(logo(), el("h1", null, `Ask a detailed question about the research in ${store.config.cluster.name}`));
+        head.append(logo(), el("h1", null, `Ask a question about the ${store.config.cluster.name} cluster.`));
         e.append(head, el("h2", "ex-label", "Example questions"));
         const starters = el("div", "starters");
         for (const q of store.config.examples) {
