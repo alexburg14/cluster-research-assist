@@ -57,8 +57,16 @@ async def remember(ctx: Any, user_id: str, kind: str, token: str) -> None:
 
 
 async def restore(ctx: Any, session: SessionState | None, user_id: str | None) -> None:
-    if not ctx.vault.enabled or session is None or user_id is None:
+    if session is None:
         return
+    # the account's own tokens first: a source they make live keeps them, and
+    # the shared key is tried only where nothing is connected yet
+    if ctx.vault.enabled and user_id is not None:
+        await _restore_own(ctx, session, user_id)
+    await _connect_shared(ctx, session, user_id)
+
+
+async def _restore_own(ctx: Any, session: SessionState, user_id: str) -> None:
     status = ctx.remote.status(session.id)
     for row in await ctx.repo.source_connections_of(user_id):
         live = status.get(row.kind)
@@ -83,3 +91,34 @@ async def restore(ctx: Any, session: SessionState | None, user_id: str | None) -
                 "stored source did not reconnect",
                 extra={"fields": {"user": user_id, "source": row.kind}},
             )
+
+
+async def _connect_shared(ctx: Any, session: SessionState, user_id: str | None) -> None:
+    if user_id is None:
+        return
+    status = ctx.remote.status(session.id)
+    for kind, source in ctx.remote.sources.items():
+        if not source.shared_token or not source.shared_token_for:
+            continue
+        if not await _holds_shared_key(ctx, source, user_id):
+            continue
+        live = status.get(kind)
+        if live is None or live["active"]:
+            continue
+        if not ctx.vault.first_attempt(session.id, kind):
+            continue
+        result = await ctx.remote.connect(session.id, kind, source.shared_token)
+        if not result["active"]:
+            log.info(
+                "shared source did not connect",
+                extra={"fields": {"source": kind, "error": result.get("error")}},
+            )
+
+
+async def _holds_shared_key(ctx: Any, source: Any, user_id: str) -> bool:
+    # an account that signs in through an identity provider has no username
+    # here, so a deployment names such an account by its user id
+    if user_id in source.shared_token_for:
+        return True
+    credential = await ctx.repo.get_credential(user_id)
+    return credential is not None and credential.username in source.shared_token_for

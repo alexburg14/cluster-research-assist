@@ -22,6 +22,13 @@ class Source:
     register_url: str
     default_base_url: str
     profiles: tuple[tuple[str, str], ...] = ()
+    # A key this deployment holds: the accounts named in `shared_token_for`
+    # are connected with it. It never reaches the browser, and with
+    # remote_write_tools off (the default) the tools it unlocks are the
+    # read-only ones -- a steered model must not write with somebody else's
+    # account. An empty list of names hands it to nobody.
+    shared_token: str = ""
+    shared_token_for: tuple[str, ...] = ()
 
     @property
     def prefix(self) -> str:
@@ -78,5 +85,16 @@ def configured(settings: Settings) -> dict[str, Source]:
             url=settings.mcp_datatagger_url,
             register_url=settings.mcp_datatagger_register_url,
             default_base_url=settings.mcp_datatagger_base_url,
+        )
+    if settings.mcp_nomad_url:
+        found["nomad"] = Source(
+            kind="nomad",
+            label="NOMAD",
+            key_label="NOMAD API key",
+            url=settings.mcp_nomad_url,
+            register_url=settings.mcp_nomad_register_url,
+            default_base_url=settings.mcp_nomad_base_url,
+            shared_token=settings.mcp_nomad_token.get_secret_value(),
+            shared_token_for=tuple(settings.mcp_nomad_token_for),
         )
     return found
