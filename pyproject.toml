@@ -31,7 +31,7 @@ dependencies = [
     "httpx",
     "numpy",
     "networkx",
-    "mcp",
+    "mcp>=2.2,<3",
     "sqlalchemy[asyncio]",
     "aiosqlite",
     "alembic",
