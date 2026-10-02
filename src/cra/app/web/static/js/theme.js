@@ -23,7 +23,9 @@ export function effectiveTheme(mode = currentTheme()) {
 export function applyTheme(mode) {
   try {
     localStorage.setItem(THEME_KEY, mode);
-  } catch { /* private mode */ }
+  } catch {
+    /* private mode */
+  }
   document.documentElement.dataset.theme = effectiveTheme(mode);
   syncControls(mode);
   for (const frame of document.querySelectorAll("iframe")) propagateTheme(frame);
@@ -41,5 +43,7 @@ export function propagateTheme(iframe) {
   try {
     const root = iframe.contentDocument?.documentElement;
     if (root) root.dataset.theme = effectiveTheme();
-  } catch { /* cross-origin */ }
+  } catch {
+    /* cross-origin */
+  }
 }

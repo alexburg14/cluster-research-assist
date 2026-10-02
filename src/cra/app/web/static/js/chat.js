@@ -59,9 +59,15 @@ function copyButton(getText) {
   b.append(svgUse("i-copy"));
   b.addEventListener("click", async () => {
     if (await copyText(getText())) {
-      b.replaceChildren(svgUse("i-check")); b.classList.add("ok");
-    } else { b.title = "copy failed"; }
-    setTimeout(() => { b.replaceChildren(svgUse("i-copy")); b.classList.remove("ok"); }, 1500);
+      b.replaceChildren(svgUse("i-check"));
+      b.classList.add("ok");
+    } else {
+      b.title = "copy failed";
+    }
+    setTimeout(() => {
+      b.replaceChildren(svgUse("i-copy"));
+      b.classList.remove("ok");
+    }, 1500);
   });
   return b;
 }
@@ -73,7 +79,11 @@ class AssistantMessage {
     // Perplexity-style: the "Researched …" line sits above the answer
     this.head = el("details", "researched live empty");
     this.headSummary = el("summary");
-    this.headSummary.append(svgUse("i-research"), el("span", "researched-text", "Researching…"), el("span", "chev", "▾"));
+    this.headSummary.append(
+      svgUse("i-research"),
+      el("span", "researched-text", "Researching…"),
+      el("span", "chev", "▾"),
+    );
     this.head.append(this.headSummary);
     this.steps = el("div", "steps");
     this.head.append(this.steps);
@@ -81,7 +91,9 @@ class AssistantMessage {
     // A real click on the disclosure triangle (not our own JS toggling it) means
     // the user has an opinion — stop auto-opening/closing this message's dropdown.
     this.userToggled = false;
-    this.headSummary.addEventListener("click", () => { this.userToggled = true; });
+    this.headSummary.addEventListener("click", () => {
+      this.userToggled = true;
+    });
     this.bubble = el("div", "bubble");
     this.md = el("div", "md");
     this.bubble.append(this.md);
@@ -177,7 +189,10 @@ class AssistantMessage {
     st.root.classList.add(data.ok ? "ok" : "bad");
     st.ico.textContent = data.ok ? "✓" : "✗";
     st.ms.textContent = `${data.ms} ms`;
-    st.body.append(el("div", "small muted", "result (preview)"), el("pre", null, data.preview || ""));
+    st.body.append(
+      el("div", "small muted", "result (preview)"),
+      el("pre", null, data.preview || ""),
+    );
   }
 
   /** The one line someone sees while the detail is collapsed. */
@@ -200,8 +215,13 @@ class AssistantMessage {
     const n = toolCalls.length;
     const parts = [];
     if (n) {
-      const names = [...new Set(toolCalls.map((c) => toolPhrase(c.replace(/^`/, "").split("(")[0])))];
-      parts.push(`${n} tool call${n === 1 ? "" : "s"}`, names.slice(0, 3).join(", ") + (names.length > 3 ? ", …" : ""));
+      const names = [
+        ...new Set(toolCalls.map((c) => toolPhrase(c.replace(/^`/, "").split("(")[0]))),
+      ];
+      parts.push(
+        `${n} tool call${n === 1 ? "" : "s"}`,
+        names.slice(0, 3).join(", ") + (names.length > 3 ? ", …" : ""),
+      );
     } else {
       parts.push("Answered without tools");
     }
@@ -232,15 +252,20 @@ class AssistantMessage {
     // live steps stay; the summary line mirrors the stored history entry
     this.summary(data.tool_calls || [], data.elapsed);
     if (data.error === "cancelled") this.note("Stopped.", "info");
-    else if (data.error === "tool_call_limit_reached") this.note("Tool-call limit reached; answered from what was found.", "info");
-    else if (data.error === "tool_calls_fruitless") this.note("Searching stopped early: the last tool calls returned nothing new.", "info");
+    else if (data.error === "tool_call_limit_reached")
+      this.note("Tool-call limit reached; answered from what was found.", "info");
+    else if (data.error === "tool_calls_fruitless")
+      this.note("Searching stopped early: the last tool calls returned nothing new.", "info");
   }
 
   note(text, kind = "") {
     this.closeThink();
-    for (const st of this.toolSteps.values()) if (st.root.classList.contains("running")) {
-      st.root.classList.remove("running"); st.ico.textContent = "–"; st.ms.textContent = "";
-    }
+    for (const st of this.toolSteps.values())
+      if (st.root.classList.contains("running")) {
+        st.root.classList.remove("running");
+        st.ico.textContent = "–";
+        st.ms.textContent = "";
+      }
     // A raw "error"/abort event never calls summary() (that's the "done" path),
     // so stop the live spinner here or it spins forever on a failed turn.
     this.head.classList.remove("live");
@@ -287,15 +312,21 @@ export function chatView(store) {
       let renderedCount = -1;
       // Follow the stream until the reader scrolls up; resume when they return to the bottom.
       let autoScroll = true;
-      const fromBottom = () => document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
+      const fromBottom = () =>
+        document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
       const atBottom = () => fromBottom() < 6;
       const onIntent = (ev) => {
         if (ev.type === "wheel" && ev.deltaY >= 0) return;
         if (ev.type === "keydown" && !["ArrowUp", "PageUp", "Home"].includes(ev.key)) return;
         autoScroll = false;
       };
-      const syncLatest = () => { latest.hidden = fromBottom() < LATEST_AWAY_PX; };
-      const onScroll = () => { if (atBottom()) autoScroll = true; syncLatest(); };
+      const syncLatest = () => {
+        latest.hidden = fromBottom() < LATEST_AWAY_PX;
+      };
+      const onScroll = () => {
+        if (atBottom()) autoScroll = true;
+        syncLatest();
+      };
       addEventListener("wheel", onIntent, { passive: true });
       addEventListener("touchmove", onIntent, { passive: true });
       addEventListener("keydown", onIntent);
@@ -303,19 +334,31 @@ export function chatView(store) {
       addEventListener("resize", syncLatest, { passive: true });
       let scrollRaf = 0;
       const scrollDown = () => {
-        if (!autoScroll) { syncLatest(); return; }
+        if (!autoScroll) {
+          syncLatest();
+          return;
+        }
         if (scrollRaf) return;
-        scrollRaf = requestAnimationFrame(() => { scrollRaf = 0; if (autoScroll) window.scrollTo(0, document.documentElement.scrollHeight); });
+        scrollRaf = requestAnimationFrame(() => {
+          scrollRaf = 0;
+          if (autoScroll) window.scrollTo(0, document.documentElement.scrollHeight);
+        });
       };
       latest.addEventListener("click", () => {
         autoScroll = true;
-        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: reduceMotion.matches ? "auto" : "smooth" });
+        window.scrollTo({
+          top: document.documentElement.scrollHeight,
+          behavior: reduceMotion.matches ? "auto" : "smooth",
+        });
       });
 
       function renderEmpty() {
         const e = el("div", "landing");
         const head = el("div", "landing-head");
-        head.append(logo(), el("h1", null, `Ask a question about the ${store.config.cluster.name} cluster.`));
+        head.append(
+          logo(),
+          el("h1", null, `Ask a question about the ${store.config.cluster.name} cluster.`),
+        );
         e.append(head, el("h2", "ex-label", "Example questions"));
         const starters = el("div", "starters");
         for (const q of store.config.examples) {
@@ -365,7 +408,8 @@ export function chatView(store) {
           else AssistantMessage.fromHistory(list, m);
         }
         renderedCount = msgs.length;
-        if (store.streaming) list.append(el("div", "note info", "A response is still being generated…"));
+        if (store.streaming)
+          list.append(el("div", "note info", "A response is still being generated…"));
         syncLatest();
       }
 
@@ -386,7 +430,8 @@ export function chatView(store) {
         text = (text || "").trim();
         if (!text || store.streaming) return;
         if (!store.session.messages.length && !list.querySelector(".msg")) list.replaceChildren();
-        ta.value = ""; grow();
+        ta.value = "";
+        grow();
         // the screen keyboard would cover the answer as it streams in
         if (touchOnly.matches) ta.blur();
         appendUser(text);
@@ -397,7 +442,10 @@ export function chatView(store) {
         renderedCount = (store.session?.messages?.length ?? 0) + 2;
         scrollDown();
         const controller = new AbortController();
-        const stop = () => { postJSON("api/chat/stop").catch(() => {}); controller.abort(); };
+        const stop = () => {
+          postJSON("api/chat/stop").catch(() => {});
+          controller.abort();
+        };
         store.update({ streaming: true, stop });
         setMode(true);
         try {
@@ -405,13 +453,26 @@ export function chatView(store) {
             signal: controller.signal,
             onEvent: (type, data) => {
               switch (type) {
-                case "text_delta": a.appendText(data.text); break;
-                case "reasoning_delta": a.reasoning(data.text); break;
-                case "tool_call_start": a.toolStart(data); break;
-                case "tool_call_end": a.toolEnd(data); break;
-                case "done": a.done(data); break;
-                case "error": a.note("Error: " + data.message); break;
-                default: break;
+                case "text_delta":
+                  a.appendText(data.text);
+                  break;
+                case "reasoning_delta":
+                  a.reasoning(data.text);
+                  break;
+                case "tool_call_start":
+                  a.toolStart(data);
+                  break;
+                case "tool_call_end":
+                  a.toolEnd(data);
+                  break;
+                case "done":
+                  a.done(data);
+                  break;
+                case "error":
+                  a.note("Error: " + data.message);
+                  break;
+                default:
+                  break;
               }
               scrollDown();
             },
@@ -422,14 +483,21 @@ export function chatView(store) {
         } finally {
           // After a stop the fetch rejects before the server has committed the
           // turn; stay in "streaming" (no history re-render) until it is idle.
-          try { await waitForIdle(); } catch { /* keep the DOM as is */ }
+          try {
+            await waitForIdle();
+          } catch {
+            /* keep the DOM as is */
+          }
           store.update({ streaming: false, stop: null });
           setMode(false);
           if (!touchOnly.matches) ta.focus();
         }
       }
 
-      send.addEventListener("click", () => { if (store.streaming) store.stop?.(); else submit(ta.value); });
+      send.addEventListener("click", () => {
+        if (store.streaming) store.stop?.();
+        else submit(ta.value);
+      });
       ta.addEventListener("keydown", (ev) => {
         if (ev.key !== "Enter" || ev.shiftKey || ev.isComposing) return;
         // ⌘/Ctrl+Enter sends everywhere, also from a keyboard attached to a tablet
@@ -452,8 +520,10 @@ export function chatView(store) {
 
       return () => {
         unsub();
-        removeEventListener("scroll", onScroll); removeEventListener("wheel", onIntent);
-        removeEventListener("touchmove", onIntent); removeEventListener("keydown", onIntent);
+        removeEventListener("scroll", onScroll);
+        removeEventListener("wheel", onIntent);
+        removeEventListener("touchmove", onIntent);
+        removeEventListener("keydown", onIntent);
         removeEventListener("resize", syncLatest);
       };
     },

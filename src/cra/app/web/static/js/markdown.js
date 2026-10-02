@@ -89,7 +89,10 @@ export function linkDois(root) {
 }
 
 export function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  return String(s).replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+  );
 }
 
 /** Coalesces many small updates into one DOM write per animation frame. */
@@ -103,10 +106,17 @@ export class StreamRenderer {
   }
   append(piece) {
     this.text += piece;
-    if (!this._raf) this._raf = requestAnimationFrame(() => { this._raf = 0; this.el.innerHTML = render(this.text); });
+    if (!this._raf)
+      this._raf = requestAnimationFrame(() => {
+        this._raf = 0;
+        this.el.innerHTML = render(this.text);
+      });
   }
   finish(text) {
-    if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; }
+    if (this._raf) {
+      cancelAnimationFrame(this._raf);
+      this._raf = 0;
+    }
     if (text != null) this.text = text;
     this.el.innerHTML = render(this.text);
     this.el.classList.remove("cursor");

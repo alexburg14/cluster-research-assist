@@ -4,7 +4,8 @@
 // in effect, so the stylesheets need no media query of their own; with no
 // stored choice it follows the system, also when that changes.
 (function () {
-  var KEY = "cra-theme", LEGACY = "econverse-theme";
+  var KEY = "cra-theme",
+    LEGACY = "econverse-theme";
   var root = document.documentElement;
   var system = window.matchMedia("(prefers-color-scheme: dark)");
   function stored() {
@@ -15,11 +16,14 @@
         localStorage.removeItem(LEGACY);
       }
       return mode;
-    } catch (e) { return null; } // private mode
+    } catch (e) {
+      return null;
+    } // private mode
   }
   function apply() {
     var mode = stored();
-    root.dataset.theme = mode === "light" || mode === "dark" ? mode : (system.matches ? "dark" : "light");
+    root.dataset.theme =
+      mode === "light" || mode === "dark" ? mode : system.matches ? "dark" : "light";
   }
   apply();
   system.addEventListener("change", apply);
