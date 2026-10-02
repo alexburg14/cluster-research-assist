@@ -92,6 +92,9 @@ class Settings(BaseSettings):
     # a stream that sends nothing for this long is hung, not thinking
     llm_timeout_s: float = Field(default=90.0, gt=0)
     llm_retries: int = Field(default=3, ge=0)
+    # no retry starts once a request has been failing this long; a request
+    # that hung is still retried once, since that is what a retry fixes
+    llm_retry_window_s: float = Field(default=30.0, ge=0)
     llm_max_tokens: int = Field(default=8192, ge=1)
     llm_max_context_tokens: int = Field(default=64000, ge=1)
     openrouter_max_price_per_mtok: float = Field(default=1.0, ge=0)
@@ -116,6 +119,10 @@ class Settings(BaseSettings):
     oidc_client_secret: SecretStr = SecretStr("")
     oidc_redirect_uri: str = ""
     oidc_scopes: str = "openid email profile"
+    # failed sign-ins (and failed set-password links) per client address per
+    # minute; 0 removes the limit. Successes never count: a room behind one NAT
+    # address signs in at once.
+    auth_failures_per_address: int = Field(default=100, ge=0)
 
     # questions per signed-in user per day; 0 removes the limit
     user_chat_daily_limit: int = Field(default=200, ge=0)
@@ -149,6 +156,9 @@ class Settings(BaseSettings):
     history_url: str = "sqlite+aiosqlite:///./cra.sqlite"
     history_retention_days: int = Field(default=365, ge=1)
     history_auto_migrate: bool = False
+    # PostgreSQL connections kept open, and how many more a burst may open
+    history_pool_size: int = Field(default=5, ge=1)
+    history_pool_overflow: int = Field(default=10, ge=0)
 
     # external MCP servers this instance consumes
     mcp_elab_url: str = ""

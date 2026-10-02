@@ -223,7 +223,11 @@ def cmd_library_init_root(args: argparse.Namespace) -> int:
 def _engine(settings: Settings):
     from cra.app.history.engine import make_engine
 
-    return make_engine(settings.history_url)
+    return make_engine(
+        settings.history_url,
+        settings.history_pool_size,
+        settings.history_pool_overflow,
+    )
 
 
 def cmd_db_upgrade(args: argparse.Namespace) -> int:
@@ -283,12 +287,28 @@ def cmd_users_list(args: argparse.Namespace) -> int:
     engine, repo = _repo(load_settings(args))
 
     async def run() -> None:
+        usernames = await repo.usernames()
+        if args.json:
+            import json
+
+            users = [
+                {
+                    "id": user.id,
+                    "name": user.display_name,
+                    "role": user.role,
+                    "active": user.is_active,
+                    "username": usernames.get(user.id),
+                }
+                for user in await repo.list_users()
+            ]
+            _out(json.dumps(users, ensure_ascii=False))
+            await engine.dispose()
+            return
         for email in await repo.list_registered_emails():
             _out(
                 f"email  {email.email:40} user={email.user_id or '-'}  "
                 f"org={email.home_organization or '*'}  by {email.created_by}"
             )
-        usernames = await repo.usernames()
         for user in await repo.list_users():
             state = "active" if user.is_active else "disabled"
             sign_in = [f"password:{usernames[user.id]}"] if user.id in usernames else []
@@ -434,6 +454,126 @@ def cmd_users_set_role(args: argparse.Namespace, role: str) -> int:
         return 0 if changed else 1
 
     return asyncio.run(run())
+
+
+def cmd_users_connect_source(args: argparse.Namespace) -> int:
+    """Store a source token for accounts, as if each had connected it.
+
+    For a workshop's shared test accounts: registering upstream once per
+    person would trip the proxy's per-address limit, since every request comes
+    from this one server. ``--copy-from`` reuses another account's sealed token
+    without the plaintext ever leaving the database, or the deployment key
+    when that account is one the key is named for.
+    """
+    from cra.app.auth import local
+    from cra.app.web.stored_sources import Vault
+    from cra.core.connectors.sources import configured
+
+    settings = load_settings(args)
+    vault = Vault(settings.source_token_key.get_secret_value())
+    if not vault.enabled:
+        sys.stderr.write("CRA_SOURCE_TOKEN_KEY is not set; nothing can be stored\n")
+        return 1
+    kinds = configured(settings)
+    if args.kind not in kinds:
+        sys.stderr.write(
+            f"unknown source {args.kind!r}; this deployment has: "
+            + (", ".join(kinds) or "none")
+            + "\n"
+        )
+        return 1
+    engine, repo = _repo(settings)
+
+    async def user_of(username: str) -> str | None:
+        found = await repo.get_credential_by_username(
+            local.normalise_username(username)
+        )
+        return found.user_id if found else None
+
+    async def sealed_token() -> str | None:
+        if not args.copy_from:
+            token = sys.stdin.readline().strip()
+            return vault.seal(token) if token else None
+        donor = await user_of(args.copy_from)
+        rows = await repo.source_connections_of(donor) if donor else []
+        for row in rows:
+            if row.kind == args.kind and vault.open(row.sealed) is not None:
+                return row.sealed
+        # a donor connected through the deployment key (CRA_MCP_NOMAD_TOKEN
+        # naming it) has no row of its own; the copies are sealed rows, so
+        # they outlive a rotation of that key until copied again
+        source = kinds[args.kind]
+        named = {args.copy_from.lower(), donor}
+        if donor and source.shared_token and named & set(source.shared_token_for):
+            return vault.seal(source.shared_token)
+        return None
+
+    async def run() -> int:
+        try:
+            sealed = await sealed_token()
+            if sealed is None:
+                sys.stderr.write(
+                    f"{args.copy_from} holds no readable {args.kind} token\n"
+                    if args.copy_from
+                    else "no token on stdin\n"
+                )
+                return 1
+            missing = []
+            for username in args.usernames:
+                user_id = await user_of(username)
+                if user_id is None:
+                    missing.append(username)
+                    continue
+                await repo.save_source_connection(user_id, args.kind, sealed)
+            connected = len(args.usernames) - len(missing)
+            _out(f"connected {connected} account(s) to {args.kind}")
+            for username in missing:
+                sys.stderr.write(f"no password account named {username}\n")
+            return 1 if missing else 0
+        finally:
+            await engine.dispose()
+
+    return asyncio.run(run())
+
+
+def cmd_feedback_export(args: argparse.Namespace) -> int:
+    from cra.app import feedback_export
+
+    engine, repo = _repo(load_settings(args))
+
+    async def run() -> list[dict]:
+        try:
+            return await feedback_export.records(repo, args.since)
+        finally:
+            await engine.dispose()
+
+    entries = asyncio.run(run())
+    text = (
+        feedback_export.to_csv(entries)
+        if args.format == "csv"
+        else feedback_export.to_json(entries) + "\n"
+    )
+    if args.output:
+        args.output.write_text(text, encoding="utf-8")
+        sys.stderr.write(f"{len(entries)} entries written to {args.output}\n")
+    else:
+        sys.stdout.write(text)
+    return 0
+
+
+def _date(value: str):
+    """Naive UTC, as the database stores it; an offset, if given, is applied."""
+    from datetime import UTC, datetime
+
+    try:
+        moment = datetime.fromisoformat(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"{value!r} is not a date such as 2026-10-07 or 2026-10-07T14:00"
+        ) from None
+    if moment.tzinfo is not None:
+        moment = moment.astimezone(UTC).replace(tzinfo=None)
+    return moment
 
 
 def cmd_policy_list(args: argparse.Namespace) -> int:
@@ -662,9 +802,13 @@ def build_parser() -> argparse.ArgumentParser:
     users_sub = users.add_subparsers(
         dest="users_command", metavar="<command>", required=True
     )
-    users_sub.add_parser(
+    listing_users = users_sub.add_parser(
         "list", help="registered emails, users and how they sign in"
-    ).set_defaults(func=cmd_users_list)
+    )
+    listing_users.add_argument(
+        "--json", action="store_true", help="the accounts as JSON, for scripts"
+    )
+    listing_users.set_defaults(func=cmd_users_list)
     create = users_sub.add_parser(
         "create",
         help="create a password account; the first admin of a new instance "
@@ -697,6 +841,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     reset.add_argument("username")
     reset.set_defaults(func=cmd_users_password_link)
+    connect = users_sub.add_parser(
+        "connect-source",
+        help="store a source token for accounts; they are connected at their "
+        "next request",
+    )
+    connect.add_argument("kind", help="elab, dt or nomad")
+    connect.add_argument("usernames", nargs="+", metavar="username")
+    connect.add_argument(
+        "--copy-from",
+        metavar="USERNAME",
+        help="reuse the token this account holds; otherwise read one from stdin",
+    )
+    connect.set_defaults(func=cmd_users_connect_source)
     add = users_sub.add_parser("add-email", help="allow an email address to sign in")
     add.add_argument("email")
     add.add_argument("--by", default="cli", help="who registered it (for the record)")
@@ -743,6 +900,21 @@ def build_parser() -> argparse.ArgumentParser:
     revoke = token_sub.add_parser("revoke", help="end a token")
     revoke.add_argument("token_id")
     revoke.set_defaults(func=cmd_token_revoke)
+
+    feedback = sub.add_parser("feedback", help="what people reported").add_subparsers(
+        dest="feedback_command", metavar="<command>", required=True
+    )
+    export = feedback.add_parser(
+        "export", help="every feedback entry, oldest first, as JSON or CSV"
+    )
+    export.add_argument(
+        "--since", type=_date, help="only entries from then on (UTC), e.g. 2026-10-07"
+    )
+    export.add_argument("--format", choices=("json", "csv"), default="json")
+    export.add_argument(
+        "-o", "--output", type=Path, help="write to this file instead of stdout"
+    )
+    export.set_defaults(func=cmd_feedback_export)
 
     policy = sub.add_parser("policy", help="operational settings admins may change")
     policy_sub = policy.add_subparsers(

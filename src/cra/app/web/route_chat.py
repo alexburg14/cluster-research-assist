@@ -111,7 +111,8 @@ async def chat() -> Any:
     allowance = ctx.limiter.check(f"chat:{g.principal.user_id}", limit)
     if not allowance.allowed:
         return {
-            "error": f"You have reached today's limit of {limit} questions.",
+            "error": f"You have reached today's limit of {limit} questions. "
+            f"It resets in about {-(-allowance.retry_after // 3600)} hours.",
             "retry_after": allowance.retry_after,
         }, 429
 
@@ -169,6 +170,13 @@ async def chat() -> Any:
                         "answered": final is not None,
                         "rounds": (final or {}).get("rounds"),
                         "error": (final or {}).get("error"),
+                        "model": chosen["model"],
+                        "elapsed_s": round((final or {}).get("elapsed", 0), 2),
+                        "tool_calls": len((final or {}).get("tools", [])),
+                        **{
+                            f"{k}_tokens": v
+                            for k, v in ((final or {}).get("usage") or {}).items()
+                        },
                     }
                 },
             )
@@ -245,6 +253,7 @@ class _Turn:
                 "elapsed": final.get("elapsed", 0),
                 "tools": final.get("tools", []),
                 "tool_calls": final.get("tool_calls", []),
+                "usage": final.get("usage", {}),
                 "error": final.get("error"),
             },
         )

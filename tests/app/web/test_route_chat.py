@@ -5,7 +5,7 @@ import json
 
 import pytest
 from conftest import make_settings, sign_in
-from fakes import FakeChatClient, text_chunk, tool_chunk
+from fakes import FakeChatClient, text_chunk, tool_chunk, usage_chunk
 
 from cra.app.web import route_chat
 from cra.app.web.factory import create_app
@@ -93,6 +93,22 @@ async def test_an_answer_streams_as_events_and_lands_in_the_history(
     roles = [m["role"] for m in session["messages"]]
     assert roles == ["user", "assistant"]
     assert session["messages"][-1]["content"] == "There are 19 papers."
+
+
+async def test_an_answer_keeps_its_token_counts(client, app, scripted):
+    scripted([[text_chunk("Hi."), usage_chunk(120, 30, 150)]])
+    await (await client.post("/api/chat", json={"prompt": "Hello?"})).get_data()
+    meta = [m for m, _ in await app.extensions["cra"].repo.answer_meta()]
+    assert meta[-1]["usage"] == {"prompt": 120, "completion": 30, "total": 150}
+
+
+async def test_the_daily_limit_says_when_it_resets(client, app, scripted):
+    scripted([[text_chunk("Hi.")]])
+    app.extensions["cra"].policy.set("user_chat_daily_limit", 1)
+    await (await client.post("/api/chat", json={"prompt": "One?"})).get_data()
+    refused = await client.post("/api/chat", json={"prompt": "Two?"})
+    assert refused.status_code == 429
+    assert "resets in about" in (await refused.get_json())["error"]
 
 
 async def test_the_conversation_is_named_after_the_stream_has_ended(

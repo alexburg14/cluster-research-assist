@@ -29,6 +29,8 @@
     <button type="button" role="tab" data-tab="feedback">Feedback</button>
     <button type="button" role="tab" data-tab="tokens" hidden>Tokens</button>
     <button type="button" role="tab" data-tab="library">Library</button>
+    <button type="button" role="tab" data-tab="server">Server info</button>
+    <button type="button" role="tab" data-tab="logs">Logs</button>
   </nav>
 
   <section id="tab-accounts" role="tabpanel">
@@ -53,7 +55,7 @@
     <form class="row-form wrap" id="local-form">
       <input type="text" id="local-name" placeholder="Full name" required maxlength="200">
       <input type="text" id="local-username" placeholder="username" required
-        pattern="[a-z0-9][a-z0-9._\-]{1,63}" autocapitalize="none" spellcheck="false">
+        pattern="[a-z0-9][a-z0-9._+@\-]{1,63}" autocapitalize="none" spellcheck="false">
       <input type="email" id="local-email" placeholder="email (optional)">
       <select id="local-role">
         <option value="user">user</option>
@@ -91,7 +93,9 @@
 
   <section id="tab-feedback" role="tabpanel" hidden>
     <p class="desc">Bug reports and notes people sent, newest first. The conversation each was sent
-    from is attached; open a row to read it.</p>
+    from is attached; open a row to read it. <span id="feedback-count"></span>
+    Download all: <a href="api/admin/feedback/export?format=csv" download>CSV</a> ·
+    <a href="api/admin/feedback/export?format=json" download>JSON</a></p>
     <table><thead><tr><th>From</th><th>Kind</th><th>Note</th><th>When</th><th></th></tr></thead>
     <tbody id="feedback"></tbody></table>
   </section>
@@ -112,6 +116,15 @@
       <button class="btn primary" type="submit">Upload and activate</button>
     </form>
     <p class="desc" id="upload-hint" hidden></p>
+  </section>
+  <section id="tab-server" role="tabpanel" hidden>
+    <div id="server-info"><p class="desc">Loading…</p></div>
+  </section>
+
+  <section id="tab-logs" role="tabpanel" hidden>
+    <p class="desc">The application log, newest first. Click an entry for all its fields and, for
+    errors, the traceback.</p>
+    <div id="log-view"></div>
   </section>
 </main>
 

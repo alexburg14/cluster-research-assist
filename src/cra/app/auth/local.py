@@ -23,7 +23,7 @@ from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 
 from cra.app.history.repository import Repository, utcnow, valid_email
-from cra.app.history.tables import User
+from cra.app.history.tables import LocalCredential, User
 
 # module-level so tests can swap in cheap parameters
 HASHER = PasswordHasher()
@@ -35,7 +35,9 @@ HASHING_SLOTS = asyncio.Semaphore(4)
 # anonymous request can make the hasher do.
 PASSWORD_MIN = 12
 PASSWORD_MAX = 256
-USERNAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9._-]{1,63}")
+# an email address is a username too, so a workshop's accounts can be named
+# after the addresses people registered with; 64 is the column's width
+USERNAME_PATTERN = re.compile(r"[a-z0-9][a-z0-9._+@-]{1,63}")
 # the first names anyone tries; refusing them means a guess needs the username
 # as well as the password
 RESERVED_USERNAMES = frozenset(
@@ -87,8 +89,8 @@ def check_username(username: str) -> str:
     name = normalise_username(username)
     if not USERNAME_PATTERN.fullmatch(name):
         raise CredentialError(
-            "a username is 2 to 64 lowercase letters, digits, '.', '_' or '-', "
-            "starting with a letter or digit"
+            "a username is 2 to 64 lowercase letters, digits, '.', '_', '-', '+' "
+            "or '@', starting with a letter or digit"
         )
     if name in RESERVED_USERNAMES:
         raise CredentialError(f"{name!r} is too easy to guess; choose another username")
@@ -134,15 +136,32 @@ def _matches(stored: str, password: str) -> bool:
         return False
 
 
-async def verify(repo: Repository, username: str, password: str) -> Verified:
-    if len(password) > PASSWORD_MAX:
-        return Verified()
-    name = normalise_username(username)
-    credential = (
+async def _credential(repo: Repository, name: str) -> LocalCredential | None:
+    """The credential a username, or an email address, names.
+
+    An address is matched against usernames and the accounts' addresses
+    together; naming two accounts, it names none rather than whichever comes
+    first, so one person's password can never open another's account.
+    """
+    by_username = (
         await repo.get_credential_by_username(name)
         if USERNAME_PATTERN.fullmatch(name)
         else None
     )
+    if "@" not in name:
+        return by_username
+    found = {c.user_id: c for c in await repo.credentials_by_email(name)}
+    if by_username is not None:
+        found[by_username.user_id] = by_username
+    return next(iter(found.values())) if len(found) == 1 else None
+
+
+async def verify(repo: Repository, username: str, password: str) -> Verified:
+    """Signs in by username or by email address; refusing an unknown name
+    takes as long as refusing a wrong password."""
+    if len(password) > PASSWORD_MAX:
+        return Verified()
+    credential = await _credential(repo, normalise_username(username))
     stored = credential.password_hash if credential else ""
     # hashed before anything else is decided, unknown username or not
     matched = await _hashing(_matches, stored, password)

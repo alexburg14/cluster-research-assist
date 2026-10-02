@@ -177,16 +177,23 @@ class RemoteHost:
             return _error(f"{source.label}: {friendly_error(exc)}")
         return _content(result)
 
+    def open_connections(self) -> dict[str, int]:
+        """Live sessions to each source, across every browser session."""
+        return self._pool.open_by_source()
+
     async def aclose(self) -> None:
         await self._pool.aclose()
 
 
-# a server that declares nothing gets judged by the verb it chose
+# a server that declares nothing gets judged by the verb it chose; ensure,
+# bulk, toggle and apply are elabmcp's (ensure_link, bulk_delete_links,
+# toggle_step, apply_tag_suggestions)
 MUTATING_VERBS = re.compile(
     r"^(create|add|new|insert|update|edit|patch|set|put|post|write|save|upload|"
     r"delete|remove|destroy|drop|purge|clear|rename|move|copy|duplicate|archive|"
     r"restore|lock|unlock|assign|attach|detach|link|unlink|tag|untag|share|"
-    r"publish|submit|send|execute|run)(_|$)",
+    r"publish|submit|send|execute|run|ensure|bulk|toggle|apply|import|merge|"
+    r"approve|sign|mark|complete)(_|$)",
     re.IGNORECASE,
 )
 

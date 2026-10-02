@@ -5,7 +5,7 @@ import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -248,6 +248,24 @@ class Repository:
             return await s.scalar(
                 select(LocalCredential).where(LocalCredential.username == username)
             )
+
+    async def credentials_by_email(self, email: str) -> list[LocalCredential]:
+        """Password credentials of every account the address names: as its
+        contact address or as a registered email it signed in with. More than
+        one means the address is ambiguous."""
+        address = normalise_email(email)
+        by_contact = select(User.id).where(func.lower(User.email) == address)
+        by_registration = select(RegisteredEmail.user_id).where(
+            RegisteredEmail.email == address
+        )
+        async with self._sessions() as s:
+            rows = await s.scalars(
+                select(LocalCredential).where(
+                    LocalCredential.user_id.in_(by_contact)
+                    | LocalCredential.user_id.in_(by_registration)
+                )
+            )
+            return list(rows)
 
     async def usernames(self) -> dict[str, str]:
         async with self._sessions() as s:
@@ -623,6 +641,76 @@ class Repository:
             )
             return [(row[0] or {}, row[1]) for row in rows]
 
+    async def answers_since(
+        self, since: datetime
+    ) -> list[tuple[datetime, dict[str, Any]]]:
+        """When each answer was given, with its metadata, oldest first."""
+        async with self._sessions() as s:
+            rows = await s.execute(
+                select(Message.created_at, Message.meta)
+                .where(Message.role == "assistant", Message.created_at >= since)
+                .order_by(Message.created_at)
+            )
+            return [(row[0], row[1] or {}) for row in rows]
+
+    async def active_users(self, since: datetime) -> int:
+        """Accounts with a session that made a request since then."""
+        async with self._sessions() as s:
+            return int(
+                await s.scalar(
+                    select(func.count(func.distinct(WebSession.user_id))).where(
+                        WebSession.last_seen_at >= since,
+                        WebSession.user_id.is_not(None),
+                    )
+                )
+            )
+
+    async def table_counts(self) -> dict[str, int]:
+        counted = {
+            "users": User,
+            "sessions": WebSession,
+            "conversations": Conversation,
+            "messages": Message,
+            "feedback": Feedback,
+        }
+        async with self._sessions() as s:
+            return {
+                name: int(await s.scalar(select(func.count()).select_from(table)))
+                for name, table in counted.items()
+            }
+
+    async def database_info(self) -> dict[str, Any]:
+        """The server's version and the database's size, where it says."""
+        async with self._sessions() as s:
+            dialect = s.bind.dialect.name
+            if dialect == "postgresql":
+                version = await s.scalar(text("show server_version"))
+                size = await s.scalar(
+                    text("select pg_database_size(current_database())")
+                )
+                connections = await s.scalar(
+                    text(
+                        "select count(*) from pg_stat_activity "
+                        "where datname = current_database()"
+                    )
+                )
+                return {
+                    "dialect": dialect,
+                    "version": str(version),
+                    "size": int(size or 0),
+                    "connections": int(connections or 0),
+                }
+            if dialect == "sqlite":
+                version = await s.scalar(text("select sqlite_version()"))
+                pages = await s.scalar(text("pragma page_count"))
+                page_size = await s.scalar(text("pragma page_size"))
+                return {
+                    "dialect": dialect,
+                    "version": str(version),
+                    "size": int(pages or 0) * int(page_size or 0),
+                }
+            return {"dialect": dialect}
+
     async def count_conversations(self) -> int:
         async with self._sessions() as s:
             return int(await s.scalar(select(func.count()).select_from(Conversation)))
@@ -658,17 +746,19 @@ class Repository:
         return row
 
     async def list_feedback(
-        self, limit: int = 200
+        self, limit: int | None = 200, since: datetime | None = None
     ) -> list[tuple[Feedback, str | None]]:
         """Newest first, each with the name of whoever sent it."""
+        query = (
+            select(Feedback, User.display_name)
+            .join(User, User.id == Feedback.user_id, isouter=True)
+            .order_by(Feedback.created_at.desc(), Feedback.id.desc())
+            .limit(limit)
+        )
+        if since is not None:
+            query = query.where(Feedback.created_at >= since)
         async with self._sessions() as s:
-            rows = await s.execute(
-                select(Feedback, User.display_name)
-                .join(User, User.id == Feedback.user_id, isouter=True)
-                .order_by(Feedback.created_at.desc(), Feedback.id.desc())
-                .limit(limit)
-            )
-            return [(row[0], row[1]) for row in rows]
+            return [(row[0], row[1]) for row in await s.execute(query)]
 
     async def delete_feedback(self, feedback_id: int) -> bool:
         async with self._sessions() as s, s.begin():
@@ -677,7 +767,7 @@ class Repository:
 
     async def count_feedback(self) -> int:
         async with self._sessions() as s:
-            return len(list(await s.scalars(select(Feedback.id))))
+            return int(await s.scalar(select(func.count()).select_from(Feedback)))
 
     async def feedback_of(self, user_id: str) -> list[Feedback]:
         async with self._sessions() as s:
