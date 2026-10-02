@@ -118,6 +118,9 @@ known-first-party = ["cra"]
 [tool.ruff.format]
 docstring-code-format = true
 
+[tool.djlint]
+profile = "jinja"
+
 [tool.check-manifest]
 ignore = ["src/cra/_version.py"]
 

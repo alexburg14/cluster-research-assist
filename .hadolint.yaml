@@ -1,0 +1,3 @@
+ignored:
+  # curl comes from Debian security updates; a pinned version breaks every rebuild
+  - DL3008
