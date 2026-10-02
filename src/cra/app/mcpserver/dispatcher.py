@@ -7,24 +7,32 @@ the app does and stops after it, which is what the session manager's task group
 needs.
 
 The endpoint is gated here rather than inside the protocol: a caller without a
-token is turned away before a session is set up at all.
+token is turned away before a session is set up at all. Where the deployment
+knows its public address, the dispatcher also serves the OAuth sign-in
+(``oauth``), and a refusal tells the client where to start it.
 """
 
 import json
 import logging
 from typing import Any
+from urllib.parse import parse_qs
 
 from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.server.transport_security import TransportSecuritySettings
 from quart import Quart
 
 from cra.app.auth import tokens
-from cra.app.mcpserver import audit, facade
+from cra.app.mcpserver import audit, facade, oauth
 
 log = logging.getLogger(__name__)
 
 CALLER_HEADER = b"x-cra-caller"
 WINDOW_S = 60
+# Registrations per address and minute. Generous, because one connector
+# platform signs in all its users from a handful of addresses; the limit is
+# against filling the client table, not against people.
+REGISTRATIONS_PER_MINUTE = 30
+WELL_KNOWN = "/.well-known/"
 
 
 class Dispatcher:
@@ -40,6 +48,20 @@ class Dispatcher:
             json_response=True,
             security_settings=_security(ctx.settings.mcp_server_allowed_hosts),
         )
+        self._oauth: Any = None
+        self._oauth_paths: frozenset[str] = frozenset()
+        self._register_path = ""
+        self._challenge = b'Bearer realm="cra"'
+        if ctx.settings.mcp_oauth_enabled:
+            paths = oauth.Paths.of(ctx.settings)
+            self._oauth = oauth.router(
+                oauth.Provider(ctx.repo, ctx.settings, ctx.http), ctx.settings
+            )
+            self._oauth_paths = oauth.served_paths(ctx.settings)
+            self._register_path = paths.endpoint("register")
+            self._challenge += (
+                f', resource_metadata="{paths.resource_metadata}"'.encode()
+            )
 
     async def __call__(self, scope: dict, receive: Any, send: Any) -> None:
         if scope["type"] == "lifespan":
@@ -51,6 +73,14 @@ class Dispatcher:
             return
         if scope["type"] == "http" and self._mine(scope.get("path", "")):
             await self._serve(scope, receive, send)
+            return
+        if scope["type"] == "http" and scope.get("path", "") in self._oauth_paths:
+            await self._sign_in(scope, receive, send)
+            return
+        if scope["type"] == "http" and scope.get("path", "").startswith(WELL_KNOWN):
+            # a client probing for a document this server has no use for (OpenID
+            # discovery, say) must read "not here", not the web app's "sign in"
+            await _refuse(send, 404, "Not found.", [])
             return
         await self._app(scope, receive, send)
 
@@ -73,7 +103,7 @@ class Dispatcher:
                     send,
                     401,
                     "This endpoint needs a bearer token.",
-                    [(b"www-authenticate", b'Bearer realm="cra"')],
+                    [(b"www-authenticate", self._challenge)],
                 )
                 return
             # the token, not its owner: two tokens of one person are two
@@ -93,6 +123,51 @@ class Dispatcher:
             )
             return
         await self._manager.handle_request(_stamped(scope, token_id), receive, send)
+
+    async def _sign_in(self, scope: dict, receive: Any, send: Any) -> None:
+        if scope["path"] == self._register_path and scope.get("method") == "POST":
+            headers = {k.decode("latin-1").lower(): v for k, v in scope["headers"]}
+            address = _address(scope, headers)
+            allowance = self._ctx.limiter.check(
+                f"oauth-register:{address}", REGISTRATIONS_PER_MINUTE, WINDOW_S
+            )
+            if not allowance.allowed:
+                audit.refused(caller=address, reason="registration rate limit")
+                await _refuse(
+                    send,
+                    429,
+                    "Too many registrations.",
+                    [(b"retry-after", str(allowance.retry_after).encode())],
+                )
+                return
+        await self._oauth(scope, receive, _logged(scope, send))
+
+
+def _logged(scope: dict, send: Any) -> Any:
+    """``send``, noting each sign-in step and how it was answered, so a client
+    that gives up can be followed. Only the path and the client's id: codes,
+    tokens and verifiers stay out of the log."""
+    query = parse_qs(scope.get("query_string", b"").decode("latin-1"))
+
+    async def noting(message: dict) -> None:
+        if message["type"] == "http.response.start":
+            headers = {k.decode("latin-1").lower(): v for k, v in scope["headers"]}
+            oauth.log.info(
+                "mcp sign-in step",
+                extra={
+                    "fields": {
+                        "method": scope.get("method", ""),
+                        "path": scope["path"],
+                        "status": message["status"],
+                        "client_id": query.get("client_id", [""])[0],
+                        "caller": _address(scope, headers),
+                        "agent": headers.get("user-agent", b"").decode("latin-1")[:120],
+                    }
+                },
+            )
+        await send(message)
+
+    return noting
 
 
 def _stamped(scope: dict, token_id: str) -> dict:
