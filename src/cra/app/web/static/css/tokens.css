@@ -4,7 +4,7 @@
    which theme-boot.js sets from the stored choice or the system setting. */
 :root {
   --ground: #f4f6f8;
-  --panel: #ffffff;
+  --panel: #fff;
   --panel-2: #fafbfc;
   --ink: #171b21;
   --ink-2: #454d57;
@@ -14,9 +14,10 @@
   --hair-2: #cfd5dc;
   --edge: #c4cad2;
   --accent: #3b72b0;
-  --accent-ink: #ffffff;
+  --accent-ink: #fff;
   --accent-soft: #e7eff9;
   --accent-hover: color-mix(in srgb, var(--accent) 86%, #000);
+
   /* a second brand colour for focus rings and the active tab */
   --accent-2: var(--accent);
   --heading-ink: var(--ink);
@@ -25,9 +26,10 @@
   --warn: #c0803a;
   --bad: #c74e5b;
   --bad-soft: #fbecee;
-  --bad-ink: #ffffff;
+  --bad-ink: #fff;
   --tip-bg: #1b1e26;
   --tip-ink: #e9ebf0;
+
   /* categorical series: pipeline stages, institutions, anything told apart by colour */
   --viz-1: #4c6ef5;
   --viz-2: #0e9d8c;
@@ -38,16 +40,19 @@
   --viz-7: #178a5e;
   --viz-8: #b5487f;
   --viz-other: #97a0aa;
-  --shadow: 0 1px 2px rgba(20, 24, 30, 0.04), 0 12px 30px -16px rgba(20, 24, 30, 0.22);
-  --display: "Spectral", Georgia, "Times New Roman", serif;
+  --shadow: 0 1px 2px rgb(20 24 30 / 4%), 0 12px 30px -16px rgb(20 24 30 / 22%);
+  --display: "Spectral", georgia, "Times New Roman", serif;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", consolas, monospace;
+
   /* multiplies every corner radius: 0 for square corners, 1 as designed */
   --radius-scale: 1;
   --header-h: 54px;
   --col: 1000px; /* one column width for chat, maps and admin */
+
   color-scheme: light;
 }
+
 :root[data-theme="dark"] {
   --ground: #0f1318;
   --panel: #171c22;
@@ -77,6 +82,7 @@
   --viz-7: #3fb183;
   --viz-8: #d57ba6;
   --viz-other: #7e8994;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 34px -18px rgba(0, 0, 0, 0.7);
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 14px 34px -18px rgb(0 0 0 / 70%);
+
   color-scheme: dark;
 }

@@ -120,6 +120,14 @@ docstring-code-format = true
 
 [tool.djlint]
 profile = "jinja"
+# J004, J018: links stay relative, so the app works under any CRA_BASE_PATH
+ignore = "J004,J018"
+
+[tool.djlint.per-file-ignores]
+# the icon sprite must be out of the layout before any stylesheet loads
+"_icons.html" = "H021"
+# only ever shown inside an iframe of the chat page, so never indexed
+"pipeline_map.html" = "H030"
 
 [tool.check-manifest]
 ignore = ["src/cra/_version.py"]

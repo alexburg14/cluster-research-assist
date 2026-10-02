@@ -10,7 +10,7 @@ export class ApiError extends Error {
 
 async function parse(res) {
   const text = await res.text();
-  let data = null;
+  let data;
   try {
     data = text ? JSON.parse(text) : null;
   } catch {

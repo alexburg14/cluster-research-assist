@@ -4,24 +4,24 @@
 // in effect, so the stylesheets need no media query of their own; with no
 // stored choice it follows the system, also when that changes.
 (function () {
-  var KEY = "cra-theme",
+  const KEY = "cra-theme",
     LEGACY = "econverse-theme";
-  var root = document.documentElement;
-  var system = window.matchMedia("(prefers-color-scheme: dark)");
+  const root = document.documentElement;
+  const system = window.matchMedia("(prefers-color-scheme: dark)");
   function stored() {
     try {
-      var mode = localStorage.getItem(KEY);
+      let mode = localStorage.getItem(KEY);
       if (mode === null && (mode = localStorage.getItem(LEGACY)) !== null) {
         localStorage.setItem(KEY, mode);
         localStorage.removeItem(LEGACY);
       }
       return mode;
-    } catch (e) {
-      return null;
-    } // private mode
+    } catch {
+      return null; // private mode
+    }
   }
   function apply() {
-    var mode = stored();
+    const mode = stored();
     root.dataset.theme =
       mode === "light" || mode === "dark" ? mode : system.matches ? "dark" : "light";
   }
@@ -31,11 +31,11 @@
   // A phone's browser tints its toolbar to match the page's own header, also
   // when the page's theme differs from the system's. The colour is the brand's,
   // so it is read once the stylesheets are in, and again after every switch.
-  var tint = document.createElement("meta");
+  const tint = document.createElement("meta");
   tint.name = "theme-color";
   document.head.appendChild(tint);
   function retint() {
-    var panel = getComputedStyle(root).getPropertyValue("--panel").trim();
+    const panel = getComputedStyle(root).getPropertyValue("--panel").trim();
     if (panel) tint.content = panel;
   }
   window.addEventListener("load", retint);

@@ -132,7 +132,7 @@ function snippet(text) {
 }
 
 const steps = (...items) =>
-  h("ol", { className: "steps" }, ...items.map((parts) => h("li", null, ...parts)));
+  h("ol", { className: "guide-steps" }, ...items.map((parts) => h("li", null, ...parts)));
 const note = (...parts) => h("p", { className: "guide-note" }, ...parts);
 const fold = (summary, ...body) =>
   h(

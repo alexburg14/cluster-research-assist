@@ -13,10 +13,6 @@ let store = null;
 const parseUtc = (iso) => new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : iso + "Z");
 const day = (iso) =>
   iso ? parseUtc(iso).toLocaleDateString(undefined, { dateStyle: "medium" }) : "—";
-const moment = (iso) =>
-  iso
-    ? parseUtc(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
-    : "never";
 
 function showError(id, message) {
   const p = el(id);

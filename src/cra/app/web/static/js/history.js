@@ -30,7 +30,7 @@ export function initHistory(store, { onOpen, toast }) {
   const list = $("history-list");
 
   async function refresh() {
-    let conversations = [];
+    let conversations;
     try {
       ({ conversations } = await getJSON("api/conversations"));
     } catch (e) {

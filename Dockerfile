@@ -33,10 +33,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 
 COPY --from=build /opt/venv /opt/venv
 
-USER cra
+USER 10001
 EXPOSE 8501
 
-# the app answers under CRA_BASE_PATH, so the check has to use it too
+# the app answers under CRA_BASE_PATH, so the check has to use it too, and
+# only the shell form expands the variables
+# hadolint ignore=DL3025
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s \
     CMD curl -fsS "http://127.0.0.1:${CRA_PORT}${CRA_BASE_PATH}/api/health" >/dev/null || exit 1
 

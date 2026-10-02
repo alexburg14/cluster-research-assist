@@ -115,7 +115,7 @@ function institutionButton(config, text) {
 
 function tabbed(panels) {
   const bar = make("div", { className: "tabs", role: "tablist" });
-  const buttons = panels.map(([label, panel], i) => {
+  const buttons = panels.map(([label], i) => {
     const button = make("button", { type: "button", role: "tab", textContent: label });
     button.addEventListener("click", () => select(i));
     return button;

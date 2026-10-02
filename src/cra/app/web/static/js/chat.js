@@ -3,7 +3,7 @@ import { streamChat, postJSON } from "./api.js";
 import { logo } from "./brand.js";
 import { StreamRenderer } from "./markdown.js";
 import { copyText } from "./clipboard.js";
-import { renderSettingsRow, toast } from "./settings.js";
+import { renderSettingsRow } from "./settings.js";
 import { refreshSession } from "./app.js";
 
 const SEND_ICON = "➤";
@@ -26,10 +26,6 @@ function el(tag, cls, text) {
 function shortArgs(args) {
   const s = JSON.stringify(args ?? {});
   return s.length > 90 ? s.slice(0, 87) + "…" : s;
-}
-
-function fmtSeconds(s) {
-  return s == null ? "" : `researched for ${Number(s).toFixed(1)} s`;
 }
 
 /** "search_papers" reads as machinery; "searching papers" reads as work. */

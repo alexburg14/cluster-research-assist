@@ -5,7 +5,7 @@ include tox.ini
 include Dockerfile
 include .dockerignore
 include package.json package-lock.json .node-version eslint.config.js
-include .prettierrc.yml .prettierignore .stylelintrc.json .hadolint.yaml .yamllint.yaml
+include .prettierrc.yml .prettierignore stylelint.config.js .hadolint.yaml .yamllint.yaml
 include .git-blame-ignore-revs
 recursive-include src/cra/app/web/static *
 recursive-include src/cra/app/web/templates *
