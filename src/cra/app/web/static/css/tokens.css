@@ -3,38 +3,86 @@
    map pages are free to change. Dark values live under [data-theme="dark"],
    which theme-boot.js sets from the stored choice or the system setting. */
 :root {
-  --ground: #F4F6F8; --panel: #FFFFFF; --panel-2: #FAFBFC;
-  --ink: #171B21; --ink-2: #454D57; --muted: #6B7480; --faint: #9AA2AD;
-  --hair: #E2E6EB; --hair-2: #CFD5DC; --edge: #C4CAD2;
-  --accent: #3B72B0; --accent-ink: #FFFFFF; --accent-soft: #E7EFF9;
+  --ground: #f4f6f8;
+  --panel: #fff;
+  --panel-2: #fafbfc;
+  --ink: #171b21;
+  --ink-2: #454d57;
+  --muted: #6b7480;
+  --faint: #9aa2ad;
+  --hair: #e2e6eb;
+  --hair-2: #cfd5dc;
+  --edge: #c4cad2;
+  --accent: #3b72b0;
+  --accent-ink: #fff;
+  --accent-soft: #e7eff9;
   --accent-hover: color-mix(in srgb, var(--accent) 86%, #000);
+
   /* a second brand colour for focus rings and the active tab */
   --accent-2: var(--accent);
-  --heading-ink: var(--ink); --heading-weight: 500;
-  --ok: #178A5E; --warn: #C0803A; --bad: #C74E5B; --bad-soft: #FBECEE; --bad-ink: #FFFFFF;
-  --tip-bg: #1B1E26; --tip-ink: #E9EBF0;
+  --heading-ink: var(--ink);
+  --heading-weight: 500;
+  --ok: #178a5e;
+  --warn: #c0803a;
+  --bad: #c74e5b;
+  --bad-soft: #fbecee;
+  --bad-ink: #fff;
+  --tip-bg: #1b1e26;
+  --tip-ink: #e9ebf0;
+
   /* categorical series: pipeline stages, institutions, anything told apart by colour */
-  --viz-1: #4C6EF5; --viz-2: #0E9D8C; --viz-3: #C0892E; --viz-4: #C74E5B;
-  --viz-5: #8A5FB0; --viz-6: #647287; --viz-7: #178A5E; --viz-8: #B5487F;
-  --viz-other: #97A0AA;
-  --shadow: 0 1px 2px rgba(20,24,30,.04), 0 12px 30px -16px rgba(20,24,30,.22);
-  --display: "Spectral", Georgia, "Times New Roman", serif;
+  --viz-1: #4c6ef5;
+  --viz-2: #0e9d8c;
+  --viz-3: #c0892e;
+  --viz-4: #c74e5b;
+  --viz-5: #8a5fb0;
+  --viz-6: #647287;
+  --viz-7: #178a5e;
+  --viz-8: #b5487f;
+  --viz-other: #97a0aa;
+  --shadow: 0 1px 2px rgb(20 24 30 / 4%), 0 12px 30px -16px rgb(20 24 30 / 22%);
+  --display: "Spectral", georgia, "Times New Roman", serif;
   --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", consolas, monospace;
+
   /* multiplies every corner radius: 0 for square corners, 1 as designed */
-  --radius-scale: 1; --header-h: 54px; --col: 1000px; /* one column width for chat, maps and admin */
+  --radius-scale: 1;
+  --header-h: 54px;
+  --col: 1000px; /* one column width for chat, maps and admin */
+
   color-scheme: light;
 }
+
 :root[data-theme="dark"] {
-  --ground: #0F1318; --panel: #171C22; --panel-2: #1C2229;
-  --ink: #EAEDF1; --ink-2: #C0C7D0; --muted: #8B94A0; --faint: #616B77;
-  --hair: #262C34; --hair-2: #333B45; --edge: #3A4653;
-  --accent: #5E97D6; --accent-ink: #0F1318; --accent-soft: #1E2C3D;
-  --accent-hover: color-mix(in srgb, var(--accent) 86%, #FFF);
-  --ok: #3FB183; --warn: #D8A05A; --bad: #DB7580; --bad-soft: #3A2226; --bad-ink: #0F1318;
-  --viz-1: #7C93F8; --viz-2: #2FBBA9; --viz-3: #DBA652; --viz-4: #DB7580;
-  --viz-5: #B189DA; --viz-6: #8593A5; --viz-7: #3FB183; --viz-8: #D57BA6;
-  --viz-other: #7E8994;
-  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 14px 34px -18px rgba(0,0,0,.7);
+  --ground: #0f1318;
+  --panel: #171c22;
+  --panel-2: #1c2229;
+  --ink: #eaedf1;
+  --ink-2: #c0c7d0;
+  --muted: #8b94a0;
+  --faint: #616b77;
+  --hair: #262c34;
+  --hair-2: #333b45;
+  --edge: #3a4653;
+  --accent: #5e97d6;
+  --accent-ink: #0f1318;
+  --accent-soft: #1e2c3d;
+  --accent-hover: color-mix(in srgb, var(--accent) 86%, #fff);
+  --ok: #3fb183;
+  --warn: #d8a05a;
+  --bad: #db7580;
+  --bad-soft: #3a2226;
+  --bad-ink: #0f1318;
+  --viz-1: #7c93f8;
+  --viz-2: #2fbba9;
+  --viz-3: #dba652;
+  --viz-4: #db7580;
+  --viz-5: #b189da;
+  --viz-6: #8593a5;
+  --viz-7: #3fb183;
+  --viz-8: #d57ba6;
+  --viz-other: #7e8994;
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 14px 34px -18px rgb(0 0 0 / 70%);
+
   color-scheme: dark;
 }

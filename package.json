@@ -1,0 +1,17 @@
+{
+  "name": "cluster-research-assist-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint . && prettier --check . && stylelint \"src/**/*.css\"",
+    "format": "eslint --fix . ; stylelint --fix \"src/**/*.css\" ; prettier --write ."
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "stylelint": "^17.16.0",
+    "stylelint-config-standard": "^40.0.0"
+  }
+}

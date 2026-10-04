@@ -28,8 +28,8 @@
     <a href="#/collaboration-graph" data-route="collaboration-graph" aria-label="Collaboration Graph"><svg class="ico"><use href="#i-graph"/></svg><span>Collaboration Graph</span></a>
   </nav>
   <div class="top-actions">
-    <button class="act" id="new-chat" title="Start a new conversation"><svg class="ico"><use href="#i-new"/></svg><span>New chat</span></button>
-    <button class="act" id="history-btn" title="Past conversations"><svg class="ico"><use href="#i-history"/></svg><span>History</span></button>
+    <button type="button" class="act" id="new-chat" title="Start a new conversation"><svg class="ico"><use href="#i-new"/></svg><span>New chat</span></button>
+    <button type="button" class="act" id="history-btn" title="Past conversations"><svg class="ico"><use href="#i-history"/></svg><span>History</span></button>
     <details class="menu" id="menu">
       <summary class="btn ghost icon" title="Menu" aria-label="Menu"><svg class="ico"><use href="#i-more"/></svg></summary>
       <div class="menu-panel">
@@ -46,7 +46,7 @@
 <div id="notice" class="notice-bar" hidden></div>
 <aside id="history" class="history" hidden>
   <div class="history-head"><b>Conversations</b>
-    <button class="btn ghost icon" id="history-close" aria-label="Close">✕</button></div>
+    <button type="button" class="btn ghost icon" id="history-close" aria-label="Close">✕</button></div>
   <div id="history-list"></div>
 </aside>
 <main id="view" class="view"></main>
@@ -55,7 +55,7 @@
   <form method="dialog" class="dlg-body">
     <header class="dlg-head">
       <h2 id="connect-title">Connect</h2>
-      <button class="btn ghost icon" value="cancel" aria-label="Close">✕</button>
+      <button type="submit" class="btn ghost icon" value="cancel" aria-label="Close">✕</button>
     </header>
     <p class="muted" id="connect-hint">Register your account once; the tools it unlocks are then available in the chat.</p>
     <label class="field">
@@ -92,7 +92,7 @@
   <form method="dialog" class="dlg-body">
     <header class="dlg-head">
       <h2>Parameters</h2>
-      <button class="btn ghost icon" value="cancel" aria-label="Close">✕</button>
+      <button type="submit" class="btn ghost icon" value="cancel" aria-label="Close">✕</button>
     </header>
     <p class="muted small">This session only. “default” means the field is not sent, so the
       provider's own value is used.</p>
@@ -110,7 +110,7 @@
   <form method="dialog" class="dlg-body" id="feedback-form">
     <header class="dlg-head">
       <h2>Feedback</h2>
-      <button class="btn ghost icon" value="cancel" aria-label="Close">✕</button>
+      <button type="submit" class="btn ghost icon" value="cancel" aria-label="Close">✕</button>
     </header>
     <p class="muted">Report a bug or leave a note about an answer. This conversation is attached so we
     can see what happened; an administrator can read it.</p>
@@ -134,7 +134,7 @@
   <form method="dialog" class="dlg-body">
     <header class="dlg-head">
       <h2>Settings</h2>
-      <button class="btn ghost icon" value="cancel" aria-label="Close">✕</button>
+      <button type="submit" class="btn ghost icon" value="cancel" aria-label="Close">✕</button>
     </header>
     <div class="side-layout">
     <nav class="tabs side" id="settings-tabs" role="tablist" aria-orientation="vertical">
@@ -243,7 +243,7 @@
   <form method="dialog" class="dlg-body">
     <header class="dlg-head">
       <h2>Stats for nerds</h2>
-      <button class="btn ghost icon" value="cancel" aria-label="Close">✕</button>
+      <button type="submit" class="btn ghost icon" value="cancel" aria-label="Close">✕</button>
     </header>
     <div id="stats-body" class="stats"><p class="muted">Loading…</p></div>
     {% if brand.manifest.pipeline %}

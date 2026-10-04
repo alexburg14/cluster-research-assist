@@ -299,11 +299,14 @@ the reason.
 Everything runs through tox:
 
 ```bash
-tox -e lint        # ruff and mypy
+tox -e lint        # ruff, mypy, eslint, prettier, stylelint, djlint, yamllint, actionlint, shellcheck, hadolint
 tox -e tests       # fast suite: no LLM, no PostgreSQL, no downloads
 tox -e build       # sdist and wheel integrity
-tox -e format      # apply formatting
+tox -e format      # ruff, prettier and the eslint/stylelint autofixes
 ```
+
+The JS and CSS tools run on a Node that tox installs into its own env (version
+in `.node-version`), so nothing beyond Python is needed.
 
 Two further suites need external resources and are not part of the default
 run: `tox -e tests-postgres` (a PostgreSQL server at `CRA_TEST_POSTGRES_URL`)

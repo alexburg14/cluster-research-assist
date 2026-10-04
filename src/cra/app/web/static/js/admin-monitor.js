@@ -22,13 +22,21 @@ const bytes = (n) => {
   if (n == null) return "—";
   const units = ["B", "KiB", "MiB", "GiB", "TiB"];
   let i = 0;
-  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024;
+    i++;
+  }
   return `${n.toFixed(n >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 };
-const count = (n) => (n == null ? "—" : Intl.NumberFormat(undefined, { notation: n >= 1e5 ? "compact" : "standard" }).format(n));
+const count = (n) =>
+  n == null
+    ? "—"
+    : Intl.NumberFormat(undefined, { notation: n >= 1e5 ? "compact" : "standard" }).format(n);
 const dollars = (n) => (n == null ? "—" : `$${Number(n).toFixed(2)}`);
 const duration = (s) => {
-  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  const d = Math.floor(s / 86400),
+    h = Math.floor((s % 86400) / 3600),
+    m = Math.floor((s % 3600) / 60);
   return d ? `${d} d ${h} h` : h ? `${h} h ${m} min` : `${m} min`;
 };
 const ago = (iso) => {
@@ -41,11 +49,16 @@ const ago = (iso) => {
 
 /** Polls ``load`` while running; a failure keeps the last values on screen. */
 function poller(load, onStale) {
-  let timer = null, delay = POLL_MS, running = false;
+  let timer = null,
+    delay = POLL_MS,
+    running = false;
   const tick = async () => {
     timer = null;
     if (!running) return;
-    if (document.hidden) { timer = setTimeout(tick, POLL_MS); return; }
+    if (document.hidden) {
+      timer = setTimeout(tick, POLL_MS);
+      return;
+    }
     try {
       await load();
       delay = POLL_MS;
@@ -56,17 +69,36 @@ function poller(load, onStale) {
     }
     if (running) timer = setTimeout(tick, delay);
   };
-  const wake = () => { if (running && !document.hidden && timer) { clearTimeout(timer); tick(); } };
+  const wake = () => {
+    if (running && !document.hidden && timer) {
+      clearTimeout(timer);
+      tick();
+    }
+  };
   return {
-    start() { if (running) return; running = true; addEventListener("visibilitychange", wake); tick(); },
-    stop() { running = false; removeEventListener("visibilitychange", wake); if (timer) clearTimeout(timer); timer = null; },
+    start() {
+      if (running) return;
+      running = true;
+      addEventListener("visibilitychange", wake);
+      tick();
+    },
+    stop() {
+      running = false;
+      removeEventListener("visibilitychange", wake);
+      if (timer) clearTimeout(timer);
+      timer = null;
+    },
   };
 }
 
 function staleBanner(box) {
   let since = null;
   return (error) => {
-    if (!error) { since = null; box.hidden = true; return; }
+    if (!error) {
+      since = null;
+      box.hidden = true;
+      return;
+    }
     since = since || new Date();
     box.hidden = false;
     box.textContent = `These values stopped updating at ${since.toLocaleTimeString()} (${error.message}). Retrying.`;
@@ -89,7 +121,10 @@ const tile = (value, label, status) => {
 function meter(label, used, total, detail) {
   const row = el("div", "meter");
   const head = el("div", "meter-head");
-  head.append(el("span", null, label), el("span", "muted", detail ?? (total ? `${bytes(used)} of ${bytes(total)}` : bytes(used))));
+  head.append(
+    el("span", null, label),
+    el("span", "muted", detail ?? (total ? `${bytes(used)} of ${bytes(total)}` : bytes(used))),
+  );
   const bar = el("div", "meter-bar");
   const fill = el("div", "meter-fill");
   const share = total ? Math.min(1, used / total) : 0;
@@ -128,14 +163,21 @@ function section(title, ...children) {
 
 /** One series per hour as bars; a hover names the hour and the value. */
 function hourlyBars(hours, value, title, format) {
-  const W = 480, H = 120, top = 14, bottom = 18;
+  const W = 480,
+    H = 120,
+    top = 14,
+    bottom = 18;
   const values = hours.map(value);
   const max = Math.max(1, ...values);
   const plot = H - top - bottom;
   const step = W / hours.length;
   const figure = el("figure", "chart");
   figure.append(el("figcaption", null, title));
-  const chart = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${title}, last 24 hours` });
+  const chart = svg("svg", {
+    viewBox: `0 0 ${W} ${H}`,
+    role: "img",
+    "aria-label": `${title}, last 24 hours`,
+  });
   chart.append(svg("line", { x1: 0, x2: W, y1: H - bottom, y2: H - bottom, class: "axis" }));
   const maxLabel = svg("text", { x: 0, y: 10, class: "tick" });
   maxLabel.textContent = format(max);
@@ -151,10 +193,12 @@ function hourlyBars(hours, value, title, format) {
       // 4px rounded data end, square at the baseline
       const r = Math.min(4, w / 2, height);
       const y = H - bottom - height;
-      chart.append(svg("path", {
-        class: "bar",
-        d: `M${x},${H - bottom}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${H - bottom}Z`,
-      }));
+      chart.append(
+        svg("path", {
+          class: "bar",
+          d: `M${x},${H - bottom}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${H - bottom}Z`,
+        }),
+      );
     }
     const hour = new Date(h.hour);
     if (i % 6 === 0) {
@@ -168,7 +212,9 @@ function hourlyBars(hours, value, title, format) {
       tip.textContent = `${hour.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: ${format(v)}`;
       tip.style.left = `${((i + 0.5) / hours.length) * 100}%`;
     });
-    hit.addEventListener("pointerleave", () => { tip.hidden = true; });
+    hit.addEventListener("pointerleave", () => {
+      tip.hidden = true;
+    });
     chart.append(hit);
   });
   figure.append(chart, tip);
@@ -179,12 +225,24 @@ function hourlyTable(hours) {
   const details = el("details", "chart-table");
   details.append(el("summary", "desc", "Show as table"));
   const table = el("table");
-  table.innerHTML = "<thead><tr><th>Hour</th><th class='num'>Answers</th><th class='num'>Failed</th><th class='num'>Prompt tokens</th><th class='num'>Completion tokens</th></tr></thead>";
+  table.innerHTML =
+    "<thead><tr><th>Hour</th><th class='num'>Answers</th><th class='num'>Failed</th><th class='num'>Prompt tokens</th><th class='num'>Completion tokens</th></tr></thead>";
   const body = el("tbody");
   for (const h of hours.filter((x) => x.answers)) {
     const tr = el("tr");
-    tr.append(el("td", null, new Date(h.hour).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })));
-    for (const k of ["answers", "failed", "prompt", "completion"]) tr.append(el("td", "num", count(h[k])));
+    tr.append(
+      el(
+        "td",
+        null,
+        new Date(h.hour).toLocaleString([], {
+          weekday: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      ),
+    );
+    for (const k of ["answers", "failed", "prompt", "completion"])
+      tr.append(el("td", "num", count(h[k])));
     body.append(tr);
   }
   if (!body.children.length) body.append(emptyRow("No answers in the last 24 hours.", 5));
@@ -218,7 +276,10 @@ function renderServer(box, s) {
   } else {
     budget.append(tile("unknown", "credit left (OpenRouter keys only)"));
   }
-  budget.append(tile(count(t.prompt + t.completion), "tokens, 24 h"), tile(count(t.avg_tokens_per_answer), "⌀ tokens per answer"));
+  budget.append(
+    tile(count(t.prompt + t.completion), "tokens, 24 h"),
+    tile(count(t.avg_tokens_per_answer), "⌀ tokens per answer"),
+  );
 
   const activity = el("div", "kpis");
   activity.append(
@@ -227,7 +288,11 @@ function renderServer(box, s) {
     tile(count(app.active_users["24h"]), "active, 24 h"),
     tile(count(app.turns_running), "answers being written"),
     tile(count(t.answers), "answers, 24 h"),
-    tile(count(t.failed), "failed, 24 h", t.failed ? { kind: "warn", icon: "⚠", text: "see below" } : null),
+    tile(
+      count(t.failed),
+      "failed, 24 h",
+      t.failed ? { kind: "warn", icon: "⚠", text: "see below" } : null,
+    ),
   );
 
   const charts = el("div", "charts");
@@ -244,13 +309,26 @@ function renderServer(box, s) {
   const memory = el("div", "meters");
   const rss = sys.process.rss ?? sys.process.peak_rss;
   if (sys.container) {
-    memory.append(meter("Container memory", sys.container.used, sys.container.limit,
-      sys.container.limit ? null : `${bytes(sys.container.used)}, no limit`));
+    memory.append(
+      meter(
+        "Container memory",
+        sys.container.used,
+        sys.container.limit,
+        sys.container.limit ? null : `${bytes(sys.container.used)}, no limit`,
+      ),
+    );
   }
-  memory.append(meter(sys.process.rss != null ? "This process" : "This process (peak)", rss, sys.container?.limit ?? sys.host?.total));
+  memory.append(
+    meter(
+      sys.process.rss != null ? "This process" : "This process (peak)",
+      rss,
+      sys.container?.limit ?? sys.host?.total,
+    ),
+  );
   if (sys.host) {
     memory.append(meter("Host memory", sys.host.total - sys.host.available, sys.host.total));
-    if (sys.host.swap_total) memory.append(meter("Swap", sys.host.swap_total - sys.host.swap_free, sys.host.swap_total));
+    if (sys.host.swap_total)
+      memory.append(meter("Swap", sys.host.swap_total - sys.host.swap_free, sys.host.swap_total));
   }
   for (const d of sys.disks) memory.append(meter(`Disk (${d.name})`, d.total - d.free, d.total));
 
@@ -260,29 +338,52 @@ function renderServer(box, s) {
     section("Activity", activity, charts, hourlyTable(usage.hours)),
     section("Failed answers, 24 h", failureList),
     section("Memory and disk", memory),
-    section("System", facts([
-      ["Host", sys.hostname],
-      ["Platform", sys.platform],
-      ["CPUs", String(sys.cpus ?? "—")],
-      ["Load (1, 5, 15 min)", sys.load ? sys.load.map((x) => x.toFixed(2)).join(", ") : "—"],
-      ["This process, CPU", sys.process_cpu_percent == null ? "measuring…" : `${sys.process_cpu_percent} % of one core`],
-      ["Up for", duration(sys.uptime_s)],
-      ["Python", sys.python],
-      ["Version", app.version],
-    ])),
-    section("Database", facts([
-      ["Type", `${db.dialect} ${db.version ?? ""}`],
-      ["Size", bytes(db.size)],
-      ["Connections (server)", db.connections == null ? "—" : String(db.connections)],
-      ["Pool", db.pool ? `${db.pool.checked_out} in use, ${db.pool.size} kept open` + (db.pool.overflow ? `, ${db.pool.overflow} extra` : "") : "—"],
-      ...Object.entries(db.rows).map(([k, v]) => [k[0].toUpperCase() + k.slice(1), count(v)]),
-    ])),
-    section("Models and sources", facts([
-      ["Provider", llm.provider],
-      ["Default model", llm.default_model],
-      ["Open lab connections", sources.length ? sources.map(([k, n]) => `${k}: ${n}`).join(", ") : "none"],
-      ["Background tasks", String(app.background_tasks)],
-    ])),
+    section(
+      "System",
+      facts([
+        ["Host", sys.hostname],
+        ["Platform", sys.platform],
+        ["CPUs", String(sys.cpus ?? "—")],
+        ["Load (1, 5, 15 min)", sys.load ? sys.load.map((x) => x.toFixed(2)).join(", ") : "—"],
+        [
+          "This process, CPU",
+          sys.process_cpu_percent == null
+            ? "measuring…"
+            : `${sys.process_cpu_percent} % of one core`,
+        ],
+        ["Up for", duration(sys.uptime_s)],
+        ["Python", sys.python],
+        ["Version", app.version],
+      ]),
+    ),
+    section(
+      "Database",
+      facts([
+        ["Type", `${db.dialect} ${db.version ?? ""}`],
+        ["Size", bytes(db.size)],
+        ["Connections (server)", db.connections == null ? "—" : String(db.connections)],
+        [
+          "Pool",
+          db.pool
+            ? `${db.pool.checked_out} in use, ${db.pool.size} kept open` +
+              (db.pool.overflow ? `, ${db.pool.overflow} extra` : "")
+            : "—",
+        ],
+        ...Object.entries(db.rows).map(([k, v]) => [k[0].toUpperCase() + k.slice(1), count(v)]),
+      ]),
+    ),
+    section(
+      "Models and sources",
+      facts([
+        ["Provider", llm.provider],
+        ["Default model", llm.default_model],
+        [
+          "Open lab connections",
+          sources.length ? sources.map(([k, n]) => `${k}: ${n}`).join(", ") : "none",
+        ],
+        ["Background tasks", String(app.background_tasks)],
+      ]),
+    ),
   );
 }
 
@@ -321,10 +422,17 @@ function logRow(entry) {
   detail.hidden = true;
   const cell = el("td");
   cell.colSpan = 4;
-  const pre = el("pre", null, JSON.stringify({ ts, level, logger, msg, ...fields }, null, 2) + (exc ? `\n\n${exc}` : ""));
+  const pre = el(
+    "pre",
+    null,
+    JSON.stringify({ ts, level, logger, msg, ...fields }, null, 2) + (exc ? `\n\n${exc}` : ""),
+  );
   cell.append(pre);
   detail.append(cell);
-  row.addEventListener("click", () => { detail.hidden = !detail.hidden; row.classList.toggle("open", !detail.hidden); });
+  row.addEventListener("click", () => {
+    detail.hidden = !detail.hidden;
+    row.classList.toggle("open", !detail.hidden);
+  });
   return [row, detail];
 }
 
@@ -337,7 +445,10 @@ export function logsTab(root) {
     const box = el("input");
     box.type = "checkbox";
     box.checked = chosen.has(level);
-    box.addEventListener("change", () => { box.checked ? chosen.add(level) : chosen.delete(level); reload(); });
+    box.addEventListener("change", () => {
+      box.checked ? chosen.add(level) : chosen.delete(level);
+      reload();
+    });
     label.append(box, document.createTextNode(` ${level.toLowerCase()}`));
     controls.append(label);
   }
@@ -345,7 +456,10 @@ export function logsTab(root) {
   search.type = "search";
   search.placeholder = "Search messages and fields";
   let debounce = null;
-  search.addEventListener("input", () => { clearTimeout(debounce); debounce = setTimeout(reload, 300); });
+  search.addEventListener("input", () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(reload, 300);
+  });
   const followLabel = el("label", "check");
   const follow = el("input");
   follow.type = "checkbox";
@@ -359,7 +473,8 @@ export function logsTab(root) {
   const stale = el("p", "stale");
   stale.hidden = true;
   const table = el("table", "logs");
-  table.innerHTML = "<thead><tr><th>Level</th><th>When</th><th>Source</th><th>Message</th></tr></thead>";
+  table.innerHTML =
+    "<thead><tr><th>Level</th><th>When</th><th>Source</th><th>Message</th></tr></thead>";
   const body = el("tbody");
   table.append(body);
   const more = el("button", "btn ghost", "Load older entries");
@@ -367,9 +482,16 @@ export function logsTab(root) {
   more.hidden = true;
   root.replaceChildren(controls, stale, table, more);
 
-  let newest = null, next = null, generation = 0;
+  let newest = null,
+    next = null,
+    generation = 0;
   const params = (extra) => {
-    const q = new URLSearchParams({ levels: [...chosen].join(","), q: search.value.trim(), limit: String(LOG_PAGE), ...extra });
+    const q = new URLSearchParams({
+      levels: [...chosen].join(","),
+      q: search.value.trim(),
+      limit: String(LOG_PAGE),
+      ...extra,
+    });
     return `api/admin/logs?${q}`;
   };
   async function reload() {
@@ -391,7 +513,11 @@ export function logsTab(root) {
   });
   let started = false;
   const live = poller(async () => {
-    if (!started) { started = true; await reload(); return; }
+    if (!started) {
+      started = true;
+      await reload();
+      return;
+    }
     if (!follow.checked || !newest) return;
     const page = await getJSON(params({ after: newest }));
     if (!page.entries.length) return;

@@ -18,7 +18,10 @@ function icon(symbol, title, onClick) {
   b.title = title;
   b.setAttribute("aria-label", title);
   b.innerHTML = `<svg class="ico"><use href="#${symbol}"/></svg>`;
-  b.addEventListener("click", (e) => { e.stopPropagation(); onClick(); });
+  b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onClick();
+  });
   return b;
 }
 
@@ -27,7 +30,7 @@ export function initHistory(store, { onOpen, toast }) {
   const list = $("history-list");
 
   async function refresh() {
-    let conversations = [];
+    let conversations;
     try {
       ({ conversations } = await getJSON("api/conversations"));
     } catch (e) {
@@ -56,7 +59,9 @@ export function initHistory(store, { onOpen, toast }) {
           const opened = await postJSON(`api/conversations/${c.id}/open`);
           close();
           await onOpen(opened);
-        } catch (e) { toast(e.message, "bad"); }
+        } catch (e) {
+          toast(e.message, "bad");
+        }
       });
 
       const stamp = document.createElement("span");
@@ -75,7 +80,9 @@ export function initHistory(store, { onOpen, toast }) {
               body: JSON.stringify({ title }),
             });
             await refresh();
-          } catch (e) { toast(e.message, "bad"); }
+          } catch (e) {
+            toast(e.message, "bad");
+          }
         }),
         icon("i-trash", "Delete", async () => {
           if (!confirm(`Delete "${c.title}"?`)) return;
@@ -83,14 +90,18 @@ export function initHistory(store, { onOpen, toast }) {
             await del(`api/conversations/${c.id}`);
             await refresh();
             if (c.current) await onOpen({ conversation: null, messages: [] });
-          } catch (e) { toast(e.message, "bad"); }
+          } catch (e) {
+            toast(e.message, "bad");
+          }
         }),
       );
       list.append(row);
     }
   }
 
-  function close() { panel.hidden = true; }
+  function close() {
+    panel.hidden = true;
+  }
 
   $("history-btn").addEventListener("click", async () => {
     panel.hidden = !panel.hidden;
@@ -100,8 +111,12 @@ export function initHistory(store, { onOpen, toast }) {
   document.addEventListener("click", (e) => {
     if (!panel.hidden && !panel.contains(e.target) && !$("history-btn").contains(e.target)) close();
   });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-  addEventListener("routechange", (e) => { if (e.detail.name !== "chat") close(); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") close();
+  });
+  addEventListener("routechange", (e) => {
+    if (e.detail.name !== "chat") close();
+  });
 
   return { refresh };
 }

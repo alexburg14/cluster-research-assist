@@ -118,7 +118,12 @@ function accountRow(p) {
     actions.append(
       button("Reset password", "ghost", () =>
         guard(async () => {
-          if (!confirm(`Reset the password of ${p.name}? Their current password stops working and they are signed out everywhere.`)) return;
+          if (
+            !confirm(
+              `Reset the password of ${p.name}? Their current password stops working and they are signed out everywhere.`,
+            )
+          )
+            return;
           const r = await postJSON(`api/admin/users/${p.id}/password-reset`);
           showLink(`Password reset link for ${p.name}`, r.link, r.expires_in_hours);
         }),
@@ -203,7 +208,11 @@ async function loadPeople() {
 function requestRow(r) {
   const row = el("tr");
   const person = el("td");
-  person.append(el("div", null, r.name), el("div", "desc", r.email || "no email released"), el("div", "desc", r.institution));
+  person.append(
+    el("div", null, r.name),
+    el("div", "desc", r.email || "no email released"),
+    el("div", "desc", r.institution),
+  );
   row.append(person);
 
   const group = el("td");
@@ -214,7 +223,11 @@ function requestRow(r) {
 
   const page = el("td", "desc");
   let host;
-  try { host = new URL(r.profile_url).host; } catch { host = null; }
+  try {
+    host = new URL(r.profile_url).host;
+  } catch {
+    host = null;
+  }
   // one link the browser cannot parse must not take the whole list with it
   if (host === null) page.append(el("span", null, r.profile_url));
   const link = el("a", null, host);
@@ -233,7 +246,11 @@ function requestRow(r) {
   if (r.status === "pending") {
     let role = "user";
     actions.append(
-      roleSelect(role, { onChange: (value) => { role = value; } }),
+      roleSelect(role, {
+        onChange: (value) => {
+          role = value;
+        },
+      }),
       button("Approve", "primary", () =>
         guard(async () => {
           await postJSON(`api/admin/access-requests/${r.id}/approve`, { role });
@@ -328,7 +345,9 @@ async function loadPolicy() {
 async function loadFeedback() {
   const { feedback, total } = await getJSON("api/admin/feedback");
   $("feedback-count").textContent =
-    total > feedback.length ? `${total} in all, the newest ${feedback.length} shown.` : `${total} in all.`;
+    total > feedback.length
+      ? `${total} in all, the newest ${feedback.length} shown.`
+      : `${total} in all.`;
   const body = $("feedback");
   body.replaceChildren();
   if (!feedback.length) {
@@ -462,14 +481,25 @@ async function uploadLibrary(file) {
   form.append("bundle", file);
   // the one multipart request; the header marks it as ours, not a form's
   const res = await fetch("api/admin/library", {
-    method: "POST", body: form, headers: { "x-requested-with": "cra" },
+    method: "POST",
+    body: form,
+    headers: { "x-requested-with": "cra" },
   });
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error((data && data.error) || res.statusText);
   return data;
 }
 
-const TABS = ["accounts", "requests", "settings", "feedback", "tokens", "library", "server", "logs"];
+const TABS = [
+  "accounts",
+  "requests",
+  "settings",
+  "feedback",
+  "tokens",
+  "library",
+  "server",
+  "logs",
+];
 // tabs that poll, made on first open and running only while open
 const live = {};
 const LIVE_TABS = { server: () => serverTab($("server-info")), logs: () => logsTab($("log-view")) };
@@ -479,7 +509,8 @@ function showTab(name) {
   const open = TABS.includes(name) ? name : TABS[0];
   if (open !== "accounts") hideLink();
   // requests arrive while the console is open; show the current ones
-  if (open === "requests" && !$("tabs").querySelector('[data-tab="requests"]').hidden) guard(loadRequests);
+  if (open === "requests" && !$("tabs").querySelector('[data-tab="requests"]').hidden)
+    guard(loadRequests);
   for (const tab of TABS) $(`tab-${tab}`).hidden = tab !== open;
   for (const [tab, make] of Object.entries(LIVE_TABS)) {
     if (tab === open) (live[tab] ??= make()).start();

@@ -31,3 +31,6 @@ logs/
 .vscode/
 *.swp
 .claude/settings.local.json
+
+# frontend tooling
+node_modules/

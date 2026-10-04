@@ -11,8 +11,8 @@ let store = null;
 
 // the server stores naive UTC timestamps
 const parseUtc = (iso) => new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : iso + "Z");
-const day = (iso) => (iso ? parseUtc(iso).toLocaleDateString(undefined, { dateStyle: "medium" }) : "—");
-const moment = (iso) => (iso ? parseUtc(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "never");
+const day = (iso) =>
+  iso ? parseUtc(iso).toLocaleDateString(undefined, { dateStyle: "medium" }) : "—";
 
 function showError(id, message) {
   const p = el(id);
@@ -23,15 +23,22 @@ function showError(id, message) {
 // ---------- account ----------
 
 function renderAccount(me) {
-  const facts = [["Name", me.name], ["Email", me.emails.join(", ") || "—"], ["Role", me.role], ["Since", day(me.created_at)]];
+  const facts = [
+    ["Name", me.name],
+    ["Email", me.emails.join(", ") || "—"],
+    ["Role", me.role],
+    ["Since", day(me.created_at)],
+  ];
   if (me.username) facts.splice(1, 0, ["Username", me.username]);
-  el("account-facts").replaceChildren(...facts.flatMap(([term, value]) => {
-    const dt = document.createElement("dt");
-    dt.textContent = term;
-    const dd = document.createElement("dd");
-    dd.textContent = value;
-    return [dt, dd];
-  }));
+  el("account-facts").replaceChildren(
+    ...facts.flatMap(([term, value]) => {
+      const dt = document.createElement("dt");
+      dt.textContent = term;
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      return [dt, dd];
+    }),
+  );
   // only a password account has a password to change
   el("account-password").hidden = !me.username;
   el("account-username").value = me.username || "";
@@ -51,7 +58,10 @@ function forgetPasswords() {
 async function changePassword() {
   const current = el("password-current").value;
   const next = el("password-new").value;
-  if (next !== el("password-again").value) { showError("password-error", "The two new passwords differ."); return; }
+  if (next !== el("password-again").value) {
+    showError("password-error", "The two new passwords differ.");
+    return;
+  }
   const button = el("password-change");
   button.disabled = true;
   try {
@@ -98,11 +108,18 @@ function showTab(name) {
 /** Opens on the tab it was last left on; each tab loads what it shows. */
 export async function openSettings() {
   el("settings-tab-mcp").hidden = !mcpOffered();
-  if (mcpOffered()) { forgetMinted(); showMcp(); }
+  if (mcpOffered()) {
+    forgetMinted();
+    showMcp();
+  }
   syncControls();
   showTab(openTab);
   el("dlg-settings").showModal();
-  const loading = [getJSON("api/me").then(renderAccount).catch((e) => showError("account-delete-error", e.message))];
+  const loading = [
+    getJSON("api/me")
+      .then(renderAccount)
+      .catch((e) => showError("account-delete-error", e.message)),
+  ];
   if (mcpOffered()) loading.push(loadTokens());
   await Promise.all(loading);
 }
@@ -115,14 +132,24 @@ export function initSettings(s) {
     if (b) showTab(b.dataset.tab);
   });
   // Enter in a field of a method=dialog form would close the dialog
-  el("account-delete-confirm").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); deleteAccount(); } });
+  el("account-delete-confirm").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      deleteAccount();
+    }
+  });
   el("account-delete-confirm").addEventListener("input", (e) => {
     el("account-delete").disabled = e.target.value.trim().toLowerCase() !== CONFIRM_WORD;
   });
   el("account-delete").addEventListener("click", deleteAccount);
   el("password-change").addEventListener("click", changePassword);
   for (const id of ["password-current", "password-new", "password-again"]) {
-    el(id).addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); changePassword(); } });
+    el(id).addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        changePassword();
+      }
+    });
   }
   el("dlg-settings").addEventListener("close", () => {
     if (mcpOffered()) forgetMinted();

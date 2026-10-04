@@ -14,9 +14,13 @@ const cache = new Map(); // clusters -> payload (server memoises too; this saves
 // Title labels: footprint of one label on screen, and how far above the
 // fitted view the first titles appear and the last ones are handed out.
 const LABEL = { w: 345, h: 22, size: 11.5, chars: 60, offset: 9 };
-const FIRST_TITLES_AT = 0.75, LAST_TITLES_AT = 8, TITLE_STEP = 0.5, FADE = 0.5;
+const FIRST_TITLES_AT = 0.75,
+  LAST_TITLES_AT = 8,
+  TITLE_STEP = 0.5,
+  FADE = 0.5;
 // Cluster names are full at the fitted view and gone this many zoom levels in.
-const CLUSTER_FADE_START = 0.4, CLUSTER_FADE_LEN = 1.2;
+const CLUSTER_FADE_START = 0.4,
+  CLUSTER_FADE_LEN = 1.2;
 // A cluster name's box: the padding around its text, and the step in zoom at
 // which a name that would cover another one is tried again.
 const NAME = { padX: 9, padY: 5, step: 0.25 };
@@ -30,8 +34,13 @@ const truncate = (t) => (t.length > LABEL.chars ? t.slice(0, LABEL.chars - 1).tr
 const article = (word) => (/^[aeiou]/i.test(word) ? "an" : "a");
 
 /** A DOI as the library stores it, from whatever the user pasted. */
-const bareDoi = (raw) => raw.trim().toLowerCase()
-  .replace(/^https?:\/\/(dx\.)?doi\.org\//, "").replace(/^doi:/, "").replace(/[}\s]+$/, "");
+const bareDoi = (raw) =>
+  raw
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\/(dx\.)?doi\.org\//, "")
+    .replace(/^doi:/, "")
+    .replace(/[}\s]+$/, "");
 
 /** A CSS colour token as [r, g, b], so the canvas labels follow the theme. */
 function tokenRGB(name) {
@@ -48,17 +57,34 @@ function clusterMarks(points, legend) {
   const sums = new Map();
   for (const p of points) {
     const s = sums.get(p.cluster) || { x: 0, y: 0, n: 0 };
-    s.x += p.x; s.y += p.y; s.n += 1; sums.set(p.cluster, s);
+    s.x += p.x;
+    s.y += p.y;
+    s.n += 1;
+    sums.set(p.cluster, s);
   }
   const colour = new Map(legend.map((e) => [e.cluster, e.color]));
   return [...sums].map(([cluster, s]) => {
-    const cx = s.x / s.n, cy = s.y / s.n;
-    let best = null, bd = Infinity;
-    for (const p of points) if (p.cluster === cluster) {
-      const d = Math.hypot(p.x - cx, p.y - cy);
-      if (d < bd) { bd = d; best = p; }
-    }
-    return { cluster, n: s.n, x: best.x, y: best.y, cx, cy, color: colour.get(cluster) || [128, 128, 128] };
+    const cx = s.x / s.n,
+      cy = s.y / s.n;
+    let best = null,
+      bd = Infinity;
+    for (const p of points)
+      if (p.cluster === cluster) {
+        const d = Math.hypot(p.x - cx, p.y - cy);
+        if (d < bd) {
+          bd = d;
+          best = p;
+        }
+      }
+    return {
+      cluster,
+      n: s.n,
+      x: best.x,
+      y: best.y,
+      cx,
+      cy,
+      color: colour.get(cluster) || [128, 128, 128],
+    };
   });
 }
 
@@ -72,7 +98,10 @@ function clusterMarks(points, legend) {
 function planTitles(points, marks, fitZoom) {
   const centre = new Map(marks.map((m) => [m.cluster, m]));
   const ranked = points
-    .map((p) => { const c = centre.get(p.cluster); return { p, d: c ? Math.hypot(p.x - c.cx, p.y - c.cy) : 0 }; })
+    .map((p) => {
+      const c = centre.get(p.cluster);
+      return { p, d: c ? Math.hypot(p.x - c.cx, p.y - c.cy) : 0 };
+    })
     .sort((a, b) => a.d - b.d)
     .map((r) => r.p);
   const at = new Map();
@@ -81,20 +110,26 @@ function planTitles(points, marks, fitZoom) {
   // earlier label is at least one full label width or height away.
   for (let z = fitZoom + FIRST_TITLES_AT; z <= fitZoom + LAST_TITLES_AT; z += TITLE_STEP) {
     const scale = 2 ** z;
-    const cw = LABEL.w / 2 / scale, ch = LABEL.h / 2 / scale;
+    const cw = LABEL.w / 2 / scale,
+      ch = LABEL.h / 2 / scale;
     const cell = (p) => [Math.floor(p.x / cw), Math.floor(p.y / ch)];
     const taken = new Set();
-    for (const p of labeled) { const [i, j] = cell(p); taken.add(i + ":" + j); }
+    for (const p of labeled) {
+      const [i, j] = cell(p);
+      taken.add(i + ":" + j);
+    }
     const free = (p) => {
       const [i, j] = cell(p);
-      for (let di = -2; di <= 2; di++) for (let dj = -2; dj <= 2; dj++) if (taken.has((i + di) + ":" + (j + dj))) return false;
+      for (let di = -2; di <= 2; di++)
+        for (let dj = -2; dj <= 2; dj++) if (taken.has(i + di + ":" + (j + dj))) return false;
       return true;
     };
     for (const p of ranked) {
       if (at.has(p.doi) || !free(p)) continue;
       at.set(p.doi, z);
       labeled.push(p);
-      const [i, j] = cell(p); taken.add(i + ":" + j);
+      const [i, j] = cell(p);
+      taken.add(i + ":" + j);
     }
   }
   return at;
@@ -112,18 +147,28 @@ function planTitles(points, marks, fitZoom) {
 function planNames(marks, fitZoom, size) {
   const measure = document.createElement("canvas").getContext("2d");
   measure.font = `600 ${size}px ${fontFamily()}`;
-  const boxes = [...marks].sort((a, b) => b.n - a.n).map((m) => ({
-    m, w: measure.measureText(m.cluster).width + 2 * NAME.padX + 4, h: size + 2 * NAME.padY + 4,
-  }));
+  const boxes = [...marks]
+    .sort((a, b) => b.n - a.n)
+    .map((m) => ({
+      m,
+      w: measure.measureText(m.cluster).width + 2 * NAME.padX + 4,
+      h: size + 2 * NAME.padY + 4,
+    }));
   const zooms = [];
-  for (let z = fitZoom; z <= fitZoom + CLUSTER_FADE_START + CLUSTER_FADE_LEN; z += NAME.step) zooms.push(z);
+  for (let z = fitZoom; z <= fitZoom + CLUSTER_FADE_START + CLUSTER_FADE_LEN; z += NAME.step)
+    zooms.push(z);
   // Shifted boxes can close in on each other as the clouds spread apart, so a
   // place must stay clear at every later zoom, not only the first.
-  const clear = (b, dy, from) => shown.every((o) => zooms.slice(from).every((z) => {
-    const k = 2 ** z;
-    return Math.abs((b.m.x - o.m.x) * k) >= (b.w + o.w) / 2
-      || Math.abs((b.m.y - o.m.y) * k + dy - o.dy) >= (b.h + o.h) / 2;
-  }));
+  const clear = (b, dy, from) =>
+    shown.every((o) =>
+      zooms.slice(from).every((z) => {
+        const k = 2 ** z;
+        return (
+          Math.abs((b.m.x - o.m.x) * k) >= (b.w + o.w) / 2 ||
+          Math.abs((b.m.y - o.m.y) * k + dy - o.dy) >= (b.h + o.h) / 2
+        );
+      }),
+    );
   const at = new Map();
   const shown = [];
   zooms.forEach((z, i) => {
@@ -185,7 +230,7 @@ export function libraryMapView(store) {
       let fitZoom = 0;
       let zoom = 0;
       let hits = [];
-      let placed = null;   // the response for a DOI brought in from outside
+      let placed = null; // the response for a DOI brought in from outside
       let selected = null; // the point whose details the card shows
       let busy = false;
       let disposed = false;
@@ -194,19 +239,29 @@ export function libraryMapView(store) {
       const noHover = matchMedia("(hover: none)");
       const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
-      function frameSize() { return [wrap.clientWidth || 700, wrap.clientHeight || 540]; }
+      function frameSize() {
+        return [wrap.clientWidth || 700, wrap.clientHeight || 540];
+      }
       // smaller names on a phone, so more of them fit beside each other
       const nameSize = () => (frameSize()[0] < 520 ? 12.5 : 14);
 
       function extent() {
-        const xs = data.map((d) => d.x), ys = data.map((d) => d.y);
-        return { minx: Math.min(...xs), maxx: Math.max(...xs), miny: Math.min(...ys), maxy: Math.max(...ys) };
+        const xs = data.map((d) => d.x),
+          ys = data.map((d) => d.y);
+        return {
+          minx: Math.min(...xs),
+          maxx: Math.max(...xs),
+          miny: Math.min(...ys),
+          maxy: Math.max(...ys),
+        };
       }
 
       function baseZoom() {
         const { minx, maxx, miny, maxy } = extent();
         const [W, H] = frameSize();
-        return Math.log2(0.85 * Math.min(W / Math.max(maxx - minx, 1e-6), H / Math.max(maxy - miny, 1e-6)));
+        return Math.log2(
+          0.85 * Math.min(W / Math.max(maxx - minx, 1e-6), H / Math.max(maxy - miny, 1e-6)),
+        );
       }
 
       /** Everything that depends on the frame's size: the fitted zoom and the label plans. */
@@ -229,117 +284,239 @@ export function libraryMapView(store) {
           // Frame the new paper together with the papers it was placed from,
           // which is the whole point of having looked it up.
           const near = [placed.point, ...placed.neighbours];
-          const nx = Math.min(...near.map((d) => d.x)), Xx = Math.max(...near.map((d) => d.x));
-          const ny = Math.min(...near.map((d) => d.y)), Xy = Math.max(...near.map((d) => d.y));
+          const nx = Math.min(...near.map((d) => d.x)),
+            Xx = Math.max(...near.map((d) => d.x));
+          const ny = Math.min(...near.map((d) => d.y)),
+            Xy = Math.max(...near.map((d) => d.y));
           target = [(nx + Xx) / 2, (ny + Xy) / 2, 0];
-          const zfit = Math.log2(0.55 * Math.min(W / Math.max(Xx - nx, 1e-6), H / Math.max(Xy - ny, 1e-6)));
+          const zfit = Math.log2(
+            0.55 * Math.min(W / Math.max(Xx - nx, 1e-6), H / Math.max(Xy - ny, 1e-6)),
+          );
           z = Math.min(Math.max(zfit, fitZoom + 0.5), fitZoom + 5);
         } else if (found.length === 1) {
           const sel = found[0];
           const dists = data.map((d) => Math.hypot(d.x - sel.x, d.y - sel.y)).sort((a, b) => a - b);
           const R = dists[Math.min(30, dists.length - 1)] || 1;
-          const zin = Math.log2(0.35 * Math.min(W, H) / Math.max(R, 1e-6));
+          const zin = Math.log2((0.35 * Math.min(W, H)) / Math.max(R, 1e-6));
           target = [sel.x, sel.y, 0];
           z = Math.min(Math.max(zin, fitZoom + 1), fitZoom + 5);
         } else if (found.length > 1) {
-          const hx = found.map((d) => d.x), hy = found.map((d) => d.y);
-          const nx = Math.min(...hx), Xx = Math.max(...hx), ny = Math.min(...hy), Xy = Math.max(...hy);
+          const hx = found.map((d) => d.x),
+            hy = found.map((d) => d.y);
+          const nx = Math.min(...hx),
+            Xx = Math.max(...hx),
+            ny = Math.min(...hy),
+            Xy = Math.max(...hy);
           target = [(nx + Xx) / 2, (ny + Xy) / 2, 0];
-          const zfit = Math.log2(0.8 * Math.min(W / Math.max(Xx - nx, 1e-6), H / Math.max(Xy - ny, 1e-6)));
+          const zfit = Math.log2(
+            0.8 * Math.min(W / Math.max(Xx - nx, 1e-6), H / Math.max(Xy - ny, 1e-6)),
+          );
           z = Math.min(Math.max(zfit, fitZoom), fitZoom + 6);
         }
         // Every title is handed out one level above LAST_TITLES_AT; deeper than
         // that is blank canvas, and further out the map is a speck.
-        return { found, viewState: { target, zoom: z, minZoom: fitZoom - 1, maxZoom: fitZoom + LAST_TITLES_AT + 1 } };
+        return {
+          found,
+          viewState: {
+            target,
+            zoom: z,
+            minZoom: fitZoom - 1,
+            maxZoom: fitZoom + LAST_TITLES_AT + 1,
+          },
+        };
       }
 
       function layers() {
         const { ScatterplotLayer, TextLayer } = window.deck;
-        const ink = tokenRGB("--ink"), panel = tokenRGB("--panel"), muted = tokenRGB("--ink-2");
+        const ink = tokenRGB("--ink"),
+          panel = tokenRGB("--panel"),
+          muted = tokenRGB("--ink-2");
         const font = fontFamily();
         const depth = zoom - fitZoom;
         const clusterAlpha = clamp01(1 - (depth - CLUSTER_FADE_START) / CLUSTER_FADE_LEN);
         // full at the zoom the plan gave it, faded in over the step before
-        const nameAlpha = (d) => Math.min(clusterAlpha, clamp01(1 + (zoom - (nameAt.get(d.cluster)?.z ?? Infinity)) / NAME.step));
+        const nameAlpha = (d) =>
+          Math.min(
+            clusterAlpha,
+            clamp01(1 + (zoom - (nameAt.get(d.cluster)?.z ?? Infinity)) / NAME.step),
+          );
         const named = marks.filter((d) => nameAlpha(d) > 0);
         // A handful of search hits are always named; beyond that the plan decides.
         const pinned = new Set(hits.length <= 12 ? hits.map((d) => d.doi) : []);
-        const titleAlpha = (d) => (pinned.has(d.doi) ? 1 : clamp01((zoom - (titleAt.get(d.doi) ?? Infinity)) / FADE));
+        const titleAlpha = (d) =>
+          pinned.has(d.doi) ? 1 : clamp01((zoom - (titleAt.get(d.doi) ?? Infinity)) / FADE);
         const titled = data.filter((d) => titleAlpha(d) > 0);
 
-        const L = [new ScatterplotLayer({
-          id: "points", data,
-          getPosition: (d) => [d.x, d.y], getFillColor: (d) => d.color,
-          getRadius: 4, radiusUnits: "pixels", radiusMinPixels: 2.5, radiusMaxPixels: 9,
-          opacity: 0.85, pickable: true, autoHighlight: true, highlightColor: [255, 255, 255, 140],
-        })];
-        if (hits.length) L.push(new ScatterplotLayer({
-          id: "matched", data: hits, getPosition: (d) => [d.x, d.y],
-          filled: false, stroked: true, getLineColor: ink, lineWidthUnits: "pixels",
-          getLineWidth: 2, lineWidthMinPixels: 2, lineWidthMaxPixels: 2,
-          getRadius: 12, radiusUnits: "pixels", radiusMinPixels: 12, radiusMaxPixels: 12, pickable: false,
-          updateTriggers: { getLineColor: ink },
-        }));
+        const L = [
+          new ScatterplotLayer({
+            id: "points",
+            data,
+            getPosition: (d) => [d.x, d.y],
+            getFillColor: (d) => d.color,
+            getRadius: 4,
+            radiusUnits: "pixels",
+            radiusMinPixels: 2.5,
+            radiusMaxPixels: 9,
+            opacity: 0.85,
+            pickable: true,
+            autoHighlight: true,
+            highlightColor: [255, 255, 255, 140],
+          }),
+        ];
+        if (hits.length)
+          L.push(
+            new ScatterplotLayer({
+              id: "matched",
+              data: hits,
+              getPosition: (d) => [d.x, d.y],
+              filled: false,
+              stroked: true,
+              getLineColor: ink,
+              lineWidthUnits: "pixels",
+              getLineWidth: 2,
+              lineWidthMinPixels: 2,
+              lineWidthMaxPixels: 2,
+              getRadius: 12,
+              radiusUnits: "pixels",
+              radiusMinPixels: 12,
+              radiusMaxPixels: 12,
+              pickable: false,
+              updateTriggers: { getLineColor: ink },
+            }),
+          );
         if (selected) {
           const accent = tokenRGB("--accent");
-          L.push(new ScatterplotLayer({
-            id: "selected", data: [selected], getPosition: (d) => [d.x, d.y],
-            filled: false, stroked: true, getLineColor: accent, lineWidthUnits: "pixels", getLineWidth: 2.5,
-            getRadius: 10, radiusUnits: "pixels", radiusMinPixels: 10, radiusMaxPixels: 10, pickable: false,
-            updateTriggers: { getLineColor: accent },
-          }));
+          L.push(
+            new ScatterplotLayer({
+              id: "selected",
+              data: [selected],
+              getPosition: (d) => [d.x, d.y],
+              filled: false,
+              stroked: true,
+              getLineColor: accent,
+              lineWidthUnits: "pixels",
+              getLineWidth: 2.5,
+              getRadius: 10,
+              radiusUnits: "pixels",
+              radiusMinPixels: 10,
+              radiusMaxPixels: 10,
+              pickable: false,
+              updateTriggers: { getLineColor: accent },
+            }),
+          );
         }
-        if (titled.length) L.push(new TextLayer({
-          id: "titles", data: titled, pickable: false, characterSet: "auto", fontFamily: font,
-          getPosition: (d) => [d.x, d.y], getText: (d) => truncate(d.cite || d.title),
-          getSize: LABEL.size, sizeUnits: "pixels", getTextAnchor: "start", getAlignmentBaseline: "center",
-          getPixelOffset: [LABEL.offset, 0],
-          getColor: (d) => [...muted, Math.round(235 * titleAlpha(d))],
-          background: true, backgroundPadding: [5, 2],
-          getBackgroundColor: (d) => [...panel, Math.round(200 * titleAlpha(d))],
-          updateTriggers: { getColor: [zoom, muted], getBackgroundColor: [zoom, panel] },
-        }));
-        if (named.length) L.push(new TextLayer({
-          id: "cluster-names", data: named, pickable: false, characterSet: "auto", fontFamily: font, fontWeight: 600,
-          getPosition: (d) => [d.x, d.y], getText: (d) => d.cluster,
-          getSize: nameSize(), sizeUnits: "pixels", getTextAnchor: "middle", getAlignmentBaseline: "center",
-          getPixelOffset: (d) => [0, nameAt.get(d.cluster).dy],
-          getColor: (d) => [...ink, Math.round(255 * nameAlpha(d))],
-          background: true, backgroundPadding: [NAME.padX, NAME.padY],
-          getBackgroundColor: (d) => [...panel, Math.round(225 * nameAlpha(d))],
-          getBorderColor: (d) => [...d.color, Math.round(255 * nameAlpha(d))], getBorderWidth: 1.5,
-          updateTriggers: { getColor: [zoom, ink], getBackgroundColor: [zoom, panel], getBorderColor: zoom, getPixelOffset: nameAt },
-        }));
+        if (titled.length)
+          L.push(
+            new TextLayer({
+              id: "titles",
+              data: titled,
+              pickable: false,
+              characterSet: "auto",
+              fontFamily: font,
+              getPosition: (d) => [d.x, d.y],
+              getText: (d) => truncate(d.cite || d.title),
+              getSize: LABEL.size,
+              sizeUnits: "pixels",
+              getTextAnchor: "start",
+              getAlignmentBaseline: "center",
+              getPixelOffset: [LABEL.offset, 0],
+              getColor: (d) => [...muted, Math.round(235 * titleAlpha(d))],
+              background: true,
+              backgroundPadding: [5, 2],
+              getBackgroundColor: (d) => [...panel, Math.round(200 * titleAlpha(d))],
+              updateTriggers: { getColor: [zoom, muted], getBackgroundColor: [zoom, panel] },
+            }),
+          );
+        if (named.length)
+          L.push(
+            new TextLayer({
+              id: "cluster-names",
+              data: named,
+              pickable: false,
+              characterSet: "auto",
+              fontFamily: font,
+              fontWeight: 600,
+              getPosition: (d) => [d.x, d.y],
+              getText: (d) => d.cluster,
+              getSize: nameSize(),
+              sizeUnits: "pixels",
+              getTextAnchor: "middle",
+              getAlignmentBaseline: "center",
+              getPixelOffset: (d) => [0, nameAt.get(d.cluster).dy],
+              getColor: (d) => [...ink, Math.round(255 * nameAlpha(d))],
+              background: true,
+              backgroundPadding: [NAME.padX, NAME.padY],
+              getBackgroundColor: (d) => [...panel, Math.round(225 * nameAlpha(d))],
+              getBorderColor: (d) => [...d.color, Math.round(255 * nameAlpha(d))],
+              getBorderWidth: 1.5,
+              updateTriggers: {
+                getColor: [zoom, ink],
+                getBackgroundColor: [zoom, panel],
+                getBorderColor: zoom,
+                getPixelOffset: nameAt,
+              },
+            }),
+          );
         if (placed) {
           const { LineLayer } = window.deck;
           const accent = tokenRGB("--accent");
           // Lines to the papers the position was averaged from: the estimate
           // is an interpolation, and drawing it says so.
-          L.push(new LineLayer({
-            id: "placed-links", data: placed.neighbours.slice(0, 5),
-            getSourcePosition: () => [placed.point.x, placed.point.y],
-            getTargetPosition: (d) => [d.x, d.y],
-            getColor: [...accent, 120], getWidth: 1, widthUnits: "pixels", pickable: false,
-            updateTriggers: { getColor: accent, getSourcePosition: placed.point },
-          }));
-          L.push(new ScatterplotLayer({
-            id: "placed", data: [placed.point], getPosition: (d) => [d.x, d.y],
-            getFillColor: [...accent, 235], getRadius: 8, radiusUnits: "pixels",
-            radiusMinPixels: 8, radiusMaxPixels: 8,
-            stroked: true, getLineColor: ink, lineWidthUnits: "pixels", getLineWidth: 2,
-            pickable: true, updateTriggers: { getFillColor: accent, getLineColor: ink },
-          }));
-          L.push(new TextLayer({
-            id: "placed-label", data: [placed.point], pickable: false,
-            characterSet: "auto", fontFamily: font,
-            getPosition: (d) => [d.x, d.y], getText: (d) => truncate(d.cite),
-            getSize: LABEL.size + 0.5, sizeUnits: "pixels", fontWeight: 600,
-            getTextAnchor: "start", getAlignmentBaseline: "center",
-            getPixelOffset: [LABEL.offset + 4, 0],
-            getColor: [...ink, 255], background: true, backgroundPadding: [6, 3],
-            getBackgroundColor: [...panel, 240], getBorderColor: [...accent, 255], getBorderWidth: 1.5,
-            updateTriggers: { getColor: ink, getBackgroundColor: panel, getBorderColor: accent },
-          }));
+          L.push(
+            new LineLayer({
+              id: "placed-links",
+              data: placed.neighbours.slice(0, 5),
+              getSourcePosition: () => [placed.point.x, placed.point.y],
+              getTargetPosition: (d) => [d.x, d.y],
+              getColor: [...accent, 120],
+              getWidth: 1,
+              widthUnits: "pixels",
+              pickable: false,
+              updateTriggers: { getColor: accent, getSourcePosition: placed.point },
+            }),
+          );
+          L.push(
+            new ScatterplotLayer({
+              id: "placed",
+              data: [placed.point],
+              getPosition: (d) => [d.x, d.y],
+              getFillColor: [...accent, 235],
+              getRadius: 8,
+              radiusUnits: "pixels",
+              radiusMinPixels: 8,
+              radiusMaxPixels: 8,
+              stroked: true,
+              getLineColor: ink,
+              lineWidthUnits: "pixels",
+              getLineWidth: 2,
+              pickable: true,
+              updateTriggers: { getFillColor: accent, getLineColor: ink },
+            }),
+          );
+          L.push(
+            new TextLayer({
+              id: "placed-label",
+              data: [placed.point],
+              pickable: false,
+              characterSet: "auto",
+              fontFamily: font,
+              getPosition: (d) => [d.x, d.y],
+              getText: (d) => truncate(d.cite),
+              getSize: LABEL.size + 0.5,
+              sizeUnits: "pixels",
+              fontWeight: 600,
+              getTextAnchor: "start",
+              getAlignmentBaseline: "center",
+              getPixelOffset: [LABEL.offset + 4, 0],
+              getColor: [...ink, 255],
+              background: true,
+              backgroundPadding: [6, 3],
+              getBackgroundColor: [...panel, 240],
+              getBorderColor: [...accent, 255],
+              getBorderWidth: 1.5,
+              updateTriggers: { getColor: ink, getBackgroundColor: panel, getBorderColor: accent },
+            }),
+          );
         }
         return L;
       }
@@ -348,7 +525,10 @@ export function libraryMapView(store) {
       function relayer() {
         if (relayerPending || !deckInst) return;
         relayerPending = true;
-        requestAnimationFrame(() => { relayerPending = false; if (deckInst && !disposed) deckInst.setProps({ layers: layers() }); });
+        requestAnimationFrame(() => {
+          relayerPending = false;
+          if (deckInst && !disposed) deckInst.setProps({ layers: layers() });
+        });
       }
 
       // A DOI is the join key everywhere: two papers can share a title, and
@@ -378,26 +558,45 @@ export function libraryMapView(store) {
         if (!deckInst) {
           zoom = viewState.zoom;
           deckInst = new Deck({
-            canvas: $("deck-canvas"), views: new OrthographicView({}),
-            controller: { scrollZoom: true, dragPan: true, doubleClickZoom: true, touchZoom: true, inertia: INERTIA_MS },
-            initialViewState: viewState, layers: layers(),
+            canvas: $("deck-canvas"),
+            views: new OrthographicView({}),
+            controller: {
+              scrollZoom: true,
+              dragPan: true,
+              doubleClickZoom: true,
+              touchZoom: true,
+              inertia: INERTIA_MS,
+            },
+            initialViewState: viewState,
+            layers: layers(),
             onViewStateChange: ({ viewState: vs }) => {
               // Label visibility is a function of zoom; a hundredth of a level is
               // below anything the eye notices and spares a relayer per pan frame.
               const q = Math.round(vs.zoom * 100) / 100;
-              if (q !== zoom) { zoom = q; relayer(); }
+              if (q !== zoom) {
+                zoom = q;
+                relayer();
+              }
             },
             onClick: ({ object }) => select(object || null),
-            getTooltip: ({ object }) => object && object !== selected && !noHover.matches && {
-              html: object.placed
-                ? `<b>${escapeHtml(object.cite)}</b><br/>not in the library · placed among its nearest neighbours`
-                : `<b>${escapeHtml(object.cite || object.title)}</b><br/>${escapeHtml(object.title)}<br/>${escapeHtml(String(object.year || ""))} · ${escapeHtml(String(object.cluster || ""))}`,
-              className: "dk-tip",
-            },
+            getTooltip: ({ object }) =>
+              object &&
+              object !== selected &&
+              !noHover.matches && {
+                html: object.placed
+                  ? `<b>${escapeHtml(object.cite)}</b><br/>not in the library · placed among its nearest neighbours`
+                  : `<b>${escapeHtml(object.cite || object.title)}</b><br/>${escapeHtml(object.title)}<br/>${escapeHtml(String(object.year || ""))} · ${escapeHtml(String(object.cluster || ""))}`,
+                className: "dk-tip",
+              },
           });
         } else {
           // glide to a search hit or a placed DOI rather than jump there
-          const glide = reduceMotion.matches ? {} : { transitionDuration: GLIDE_MS, transitionInterpolator: new LinearInterpolator(["target", "zoom"]) };
+          const glide = reduceMotion.matches
+            ? {}
+            : {
+                transitionDuration: GLIDE_MS,
+                transitionInterpolator: new LinearInterpolator(["target", "zoom"]),
+              };
           deckInst.setProps({ layers: layers(), initialViewState: { ...viewState, ...glide } });
         }
       }
@@ -411,10 +610,13 @@ export function libraryMapView(store) {
             ? "Not in the library · placed among its nearest neighbours"
             : [object.year, object.cluster].filter(Boolean).join(" · ");
           const doi = String(object.doi || "");
-          const title = object.title && object.title !== object.cite && object.title !== doi
-            ? `<div class="title">${escapeHtml(object.title)}</div>` : "";
+          const title =
+            object.title && object.title !== object.cite && object.title !== doi
+              ? `<div class="title">${escapeHtml(object.title)}</div>`
+              : "";
           const link = doi.startsWith("10.")
-            ? `<a href="https://doi.org/${escapeHtml(encodeURI(doi))}" target="_blank" rel="noopener noreferrer">doi.org/${escapeHtml(doi)}</a>` : "";
+            ? `<a href="https://doi.org/${escapeHtml(encodeURI(doi))}" target="_blank" rel="noopener noreferrer">doi.org/${escapeHtml(doi)}</a>`
+            : "";
           mapCard.innerHTML = `<button type="button" class="close" aria-label="Close">✕</button>
             <div class="cite">${escapeHtml(object.cite || object.title)}</div>${title}
             <div class="meta">${escapeHtml(String(meta))}</div>${link}`;
@@ -425,8 +627,14 @@ export function libraryMapView(store) {
 
       function renderLegend(legend) {
         const el = $("legend");
-        el.innerHTML = '<div class="t">Cluster (top title keywords)</div>' + legend.map((e) =>
-          `<span><i style="background:rgb(${e.color.join(",")})"></i>${e.cluster}</span>`).join("");
+        el.innerHTML =
+          '<div class="t">Cluster (top title keywords)</div>' +
+          legend
+            .map(
+              (e) =>
+                `<span><i style="background:rgb(${e.color.join(",")})"></i>${e.cluster}</span>`,
+            )
+            .join("");
       }
 
       async function load(n) {
@@ -434,9 +642,16 @@ export function libraryMapView(store) {
         status.hidden = cache.has(n);
         try {
           let payload = cache.get(n);
-          if (!payload) { payload = await getJSON(`api/publication-map?clusters=${n}`); if (payload.available) cache.set(n, payload); }
+          if (!payload) {
+            payload = await getJSON(`api/publication-map?clusters=${n}`);
+            if (payload.available) cache.set(n, payload);
+          }
           if (disposed) return;
-          if (!payload.available) { status.textContent = payload.hint || "Library map not available."; status.hidden = false; return; }
+          if (!payload.available) {
+            status.textContent = payload.hint || "Library map not available.";
+            status.hidden = false;
+            return;
+          }
           await loadDeck();
           // the cluster names are measured in the page's font
           await document.fonts?.ready;
@@ -445,22 +660,29 @@ export function libraryMapView(store) {
           // One haystack per paper, built once: doing it per keystroke would
           // rebuild every string on a library of a few thousand.
           for (const d of data) {
-            d._hay = `${d.cite || ""} ${d.title || ""} ${d.au || ""} ${d.year || ""} ${d.doi}`.toLowerCase();
+            d._hay =
+              `${d.cite || ""} ${d.title || ""} ${d.au || ""} ${d.year || ""} ${d.doi}`.toLowerCase();
           }
           if (!$("paper-titles").children.length) {
             const dl = $("paper-titles");
             for (const c of [...new Set(data.map((d) => d.cite || d.title))].sort()) {
-              const o = document.createElement("option"); o.value = c; dl.append(o);
+              const o = document.createElement("option");
+              o.value = c;
+              dl.append(o);
             }
           }
           renderLegend(payload.legend);
           marks = clusterMarks(data, payload.legend);
           plan();
           // a new clustering renames the clusters; the card follows its paper
-          if (selected && !selected.placed) select(data.find((d) => d.doi === selected.doi) || null);
+          if (selected && !selected.placed)
+            select(data.find((d) => d.doi === selected.doi) || null);
           status.hidden = true;
           draw();
-        } catch (e) { status.textContent = e.message; status.hidden = false; }
+        } catch (e) {
+          status.textContent = e.message;
+          status.hidden = false;
+        }
       }
 
       const card = $("lookup-card");
@@ -475,20 +697,28 @@ export function libraryMapView(store) {
         const point = found.point;
         const lines = [`<div class="cite">${escapeHtml(point.cite)}</div>`];
         if (found.in_library) {
-          lines.push('<div class="meta">Already in the library — shown at its own place on the map.</div>');
+          lines.push(
+            '<div class="meta">Already in the library — shown at its own place on the map.</div>',
+          );
         } else {
           const percent = Math.round((found.confidence || 0) * 100);
           const where = found.duplicate_of
             ? "The library already holds what looks like the same paper"
             : `Placed among the ${found.used} closest papers, which the projection was not refitted for`;
-          lines.push(`<div class="meta">${where}. Closest match ${percent}% similar. Metadata from ${escapeHtml(found.source)}.</div>`);
+          lines.push(
+            `<div class="meta">${where}. Closest match ${percent}% similar. Metadata from ${escapeHtml(found.source)}.</div>`,
+          );
           if (!found.has_abstract) {
-            lines.push('<div class="meta">No abstract was published for this DOI, so it was placed by its title alone — treat the position as rough.</div>');
+            lines.push(
+              '<div class="meta">No abstract was published for this DOI, so it was placed by its title alone — treat the position as rough.</div>',
+            );
           }
         }
         if (found.neighbours.length) {
-          const items = found.neighbours.slice(0, 5)
-            .map((n) => `<li>${escapeHtml(n.cite)}</li>`).join("");
+          const items = found.neighbours
+            .slice(0, 5)
+            .map((n) => `<li>${escapeHtml(n.cite)}</li>`)
+            .join("");
           lines.push(`<div class="meta">Closest in the library:</div><ol>${items}</ol>`);
         }
         return lines.join("");
@@ -532,7 +762,10 @@ export function libraryMapView(store) {
 
       $("doi-go").addEventListener("click", lookupDoi);
       $("doi-input").addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); lookupDoi(); }
+        if (e.key === "Enter") {
+          e.preventDefault();
+          lookupDoi();
+        }
       });
       // Emptying the field undoes the placement, the way emptying the search
       // field undoes a search. That covers the input's own clear button, a
@@ -550,10 +783,15 @@ export function libraryMapView(store) {
         timer = setTimeout(() => load(Number(slider.value)), 250);
       });
       let searchTimer = 0;
-      $("paper-search").addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => data.length && draw(), 200); });
+      $("paper-search").addEventListener("input", () => {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => data.length && draw(), 200);
+      });
       $("paper-search").addEventListener("change", () => data.length && draw());
       // the search key on an on-screen keyboard closes it, so the hits are in view
-      $("paper-search").addEventListener("keydown", (e) => { if (e.key === "Enter" && noHover.matches) e.target.blur(); });
+      $("paper-search").addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && noHover.matches) e.target.blur();
+      });
 
       // The fitted zoom depends on the frame, and the label colours on the theme.
       const sizer = new ResizeObserver(() => {
@@ -564,7 +802,10 @@ export function libraryMapView(store) {
       sizer.observe(wrap);
       const unexpand = expandable(wrap);
       const themed = new MutationObserver(relayer);
-      themed.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+      themed.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["data-theme"],
+      });
       const scheme = matchMedia("(prefers-color-scheme: dark)");
       scheme.addEventListener("change", relayer);
 
@@ -573,8 +814,13 @@ export function libraryMapView(store) {
       return () => {
         disposed = true;
         unexpand();
-        sizer.disconnect(); themed.disconnect(); scheme.removeEventListener("change", relayer);
-        if (deckInst) { deckInst.finalize(); deckInst = null; }
+        sizer.disconnect();
+        themed.disconnect();
+        scheme.removeEventListener("change", relayer);
+        if (deckInst) {
+          deckInst.finalize();
+          deckInst = null;
+        }
       };
     },
   };

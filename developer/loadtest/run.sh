@@ -47,7 +47,7 @@ trap 'kill "${pids[@]}" 2>/dev/null || true' EXIT
 [[ ${LOADTEST_DOWN:-} == elab ]] || { "$py" "$here/mock_sources.py" elab --port 8801 > mock_elab.log 2>&1 & pids+=($!); }
 [[ ${LOADTEST_DOWN:-} == dt ]] || { "$py" "$here/mock_sources.py" dt --port 8802 > mock_dt.log 2>&1 & pids+=($!); }
 "$cra" --env-file load.env db upgrade >/dev/null
-"$cra" --env-file load.env serve > serve.log 2>&1 & cra_pid=$!; pids+=($cra_pid)
+"$cra" --env-file load.env serve > serve.log 2>&1 & cra_pid=$!; pids+=("$cra_pid")
 until curl -fs -o /dev/null http://127.0.0.1:8766/; do sleep 1; done
 
 echo "$LOADTEST_ADMIN_PASSWORD" | "$cra" --env-file load.env users create loadadmin \
@@ -59,7 +59,7 @@ for kind in elab dt; do
 done
 users=50
 for arg in "$@"; do [[ ${prev:-} == --users ]] && users=$arg; prev=$arg; done
-{ echo "email,name"; for n in $(seq 0 $((users - 1))); do printf 'attendee%02d@uni.test,Attendee %02d\n' $n $n; done; } > attendees.csv
+{ echo "email,name"; for n in $(seq 0 $((users - 1))); do printf 'attendee%02d@uni.test,Attendee %02d\n' "$n" "$n"; done; } > attendees.csv
 echo "$LOADTEST_PASSWORD" | "$py" "$atlas/scripts/workshop_accounts.py" --cra "$cra --env-file load.env" \
   create attendees.csv --password-stdin --connect elab,dt | tail -3
 

@@ -108,7 +108,9 @@ async function disconnect() {
     await refreshSession();
     toast(`${store.config.sources[connectKind].label} disconnected`);
     el("dlg-connect").close();
-  } catch (e) { toast(e.message, "bad"); }
+  } catch (e) {
+    toast(e.message, "bad");
+  }
 }
 
 // ---------- parameters dialog ----------
@@ -222,7 +224,11 @@ async function submitFeedback() {
   const text = document.getElementById("feedback-text").value.trim();
   const category = document.querySelector("#feedback-category input:checked").value;
   const err = document.getElementById("feedback-error");
-  if (!text) { err.textContent = "Add a note before submitting."; err.hidden = false; return; }
+  if (!text) {
+    err.textContent = "Add a note before submitting.";
+    err.hidden = false;
+    return;
+  }
   try {
     await postJSON("api/feedback", {
       category,
@@ -235,7 +241,10 @@ async function submitFeedback() {
     });
     document.getElementById("dlg-feedback").close();
     toast("Thanks — recorded.");
-  } catch (e) { err.textContent = e.message; err.hidden = false; }
+  } catch (e) {
+    err.textContent = e.message;
+    err.hidden = false;
+  }
 }
 
 // ---------- stats dialog ----------
@@ -246,17 +255,22 @@ export async function openStats() {
   try {
     const s = await getJSON("api/stats");
     body.innerHTML = renderStats(s);
-  } catch (e) { body.innerHTML = `<p class="error">${escapeHtml(e.message)}</p>`; }
+  } catch (e) {
+    body.innerHTML = `<p class="error">${escapeHtml(e.message)}</p>`;
+  }
 }
 
 function renderStats(s) {
-  const built = s.build.library_built_at ? s.build.library_built_at.slice(0, 16).replace("T", " ") : "unknown";
+  const built = s.build.library_built_at
+    ? s.build.library_built_at.slice(0, 16).replace("T", " ")
+    : "unknown";
   const u = s.usage;
   const tools = store.session.tools;
-  const inventory = [`${tools.local} local`]
-    .concat(sourceCounts(store, tools)).join(" · ");
-  const kpi = (n, l) => `<div class="kpi"><div class="n">${escapeHtml(n)}</div><div class="l">${escapeHtml(l)}</div></div>`;
-  const row = (cells, num = []) => `<tr>${cells.map((c, i) => `<td class="${num.includes(i) ? "num" : ""}">${escapeHtml(c ?? "—")}</td>`).join("")}</tr>`;
+  const inventory = [`${tools.local} local`].concat(sourceCounts(store, tools)).join(" · ");
+  const kpi = (n, l) =>
+    `<div class="kpi"><div class="n">${escapeHtml(n)}</div><div class="l">${escapeHtml(l)}</div></div>`;
+  const row = (cells, num = []) =>
+    `<tr>${cells.map((c, i) => `<td class="${num.includes(i) ? "num" : ""}">${escapeHtml(c ?? "—")}</td>`).join("")}</tr>`;
   return `
     <p class="muted small">Version <code>${escapeHtml(s.build.version)}</code> · provider ${escapeHtml(s.provider)} ·
       default model <code>${escapeHtml(s.default_model)}</code> · tools in this session: ${escapeHtml(inventory)}</p>
@@ -283,8 +297,12 @@ function renderStats(s) {
  *  from closing the dialog. */
 function closeOnBackdropClick(dlg) {
   let fromBackdrop = false;
-  dlg.addEventListener("mousedown", (e) => { fromBackdrop = e.target === dlg; });
-  dlg.addEventListener("click", (e) => { if (fromBackdrop && e.target === dlg) dlg.close("cancel"); });
+  dlg.addEventListener("mousedown", (e) => {
+    fromBackdrop = e.target === dlg;
+  });
+  dlg.addEventListener("click", (e) => {
+    if (fromBackdrop && e.target === dlg) dlg.close("cancel");
+  });
 }
 
 export function initDialogs(s) {
@@ -305,20 +323,39 @@ export function initDialogs(s) {
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") for (const d of popovers()) d.open = false;
   });
-  document.getElementById("stats-btn").addEventListener("click", () => { menu.open = false; openStats(); });
+  document.getElementById("stats-btn").addEventListener("click", () => {
+    menu.open = false;
+    openStats();
+  });
   initSettings(s);
-  document.getElementById("settings-btn").addEventListener("click", () => { menu.open = false; openSettings(); });
+  document.getElementById("settings-btn").addEventListener("click", () => {
+    menu.open = false;
+    openSettings();
+  });
   // absent when the deployment describes no pipeline
   const box = document.getElementById("pipeline-box");
   box?.addEventListener("toggle", () => {
     const f = document.getElementById("pipeline-frame");
-    if (box.open && !f.src) { f.src = f.dataset.src; f.addEventListener("load", () => propagateTheme(f), { once: true }); }
+    if (box.open && !f.src) {
+      f.src = f.dataset.src;
+      f.addEventListener("load", () => propagateTheme(f), { once: true });
+    }
   });
   document.getElementById("connect-submit").addEventListener("click", submitRegister);
   document.getElementById("connect-token-submit").addEventListener("click", submitToken);
   document.getElementById("connect-disconnect").addEventListener("click", disconnect);
-  document.getElementById("connect-key").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submitRegister(); } });
-  document.getElementById("connect-token").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); submitToken(); } });
+  document.getElementById("connect-key").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitRegister();
+    }
+  });
+  document.getElementById("connect-token").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitToken();
+    }
+  });
   document.getElementById("feedback-submit").addEventListener("click", submitFeedback);
   document.getElementById("params-apply").addEventListener("click", applyParams);
   document.getElementById("params-reset").addEventListener("click", resetParams);
@@ -380,7 +417,9 @@ export function renderSettingsRow(store, el) {
   if (Object.keys(cfg.sources || {}).length) el.append(toolsPicker(store));
   if (store.session.model || store.session.auto_model) el.append(modelPicker(store));
 
-  const spacer = document.createElement("span"); spacer.className = "spacer"; el.append(spacer);
+  const spacer = document.createElement("span");
+  spacer.className = "spacer";
+  el.append(spacer);
   const fb = chip("i-feedback", "Feedback", "Report a bug or leave a note about an answer");
   fb.addEventListener("click", openFeedback);
   el.append(fb);
@@ -390,9 +429,16 @@ function toolsPicker(store) {
   const connected = store.session.connected || {};
   const sources = Object.entries(store.config.sources);
   const active = sources.filter(([kind]) => connected[kind]?.active).map(([, src]) => src.label);
-  const { picker: p, summary, menu } = picker(
-    "i-tools", "Tools",
-    active.length ? `Connected: ${active.join(", ")}` : "The library is built in; connect further sources here",
+  const {
+    picker: p,
+    summary,
+    menu,
+  } = picker(
+    "i-tools",
+    "Tools",
+    active.length
+      ? `Connected: ${active.join(", ")}`
+      : "The library is built in; connect further sources here",
   );
   summary.classList.toggle("on", active.length > 0);
   menu.classList.add("tool-menu");
@@ -409,10 +455,16 @@ function toolsPicker(store) {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "tool-row";
-    b.title = on ? "Connected — click to replace the token or disconnect" : "Not connected — click to register and paste a token";
-    b.innerHTML = `<span class="dot${on ? " on" : ""}"></span><span class="tool-name">${escapeHtml(src.label)}</span>` +
+    b.title = on
+      ? "Connected — click to replace the token or disconnect"
+      : "Not connected — click to register and paste a token";
+    b.innerHTML =
+      `<span class="dot${on ? " on" : ""}"></span><span class="tool-name">${escapeHtml(src.label)}</span>` +
       `<span class="tool-state">${on ? "connected" : "connect…"}</span>`;
-    b.addEventListener("click", () => { p.open = false; openConnect(kind); });
+    b.addEventListener("click", () => {
+      p.open = false;
+      openConnect(kind);
+    });
     menu.append(b);
   }
   menu.append(hint("The assistant calls these when a question needs them."));
@@ -423,9 +475,16 @@ function modelPicker(store) {
   const { session, config } = store;
   const changed = changedParams(store);
   const label = session.auto_model ? `auto · ${session.route_label}` : session.model;
-  const { picker: p, summary, menu } = picker(
-    "i-model", label,
-    changed.length ? `Choose the model · parameters changed: ${changed.join(", ")}` : "Choose the model and its parameters",
+  const {
+    picker: p,
+    summary,
+    menu,
+  } = picker(
+    "i-model",
+    label,
+    changed.length
+      ? `Choose the model · parameters changed: ${changed.join(", ")}`
+      : "Choose the model and its parameters",
   );
   summary.classList.toggle("on", changed.length > 0);
   if (changed.length) {
@@ -481,9 +540,18 @@ function modelPicker(store) {
   params.type = "button";
   params.className = "action";
   params.append(svgIcon("i-sliders"), "Parameters…");
-  params.addEventListener("click", () => { p.open = false; openParams(); });
-  menu.append(params,
-    hint(changed.length ? `Changed for this session: ${changed.join(", ")}` : "Reasoning, sampling and the tool-call limit"));
+  params.addEventListener("click", () => {
+    p.open = false;
+    openParams();
+  });
+  menu.append(
+    params,
+    hint(
+      changed.length
+        ? `Changed for this session: ${changed.join(", ")}`
+        : "Reasoning, sampling and the tool-call limit",
+    ),
+  );
   return p;
 }
 

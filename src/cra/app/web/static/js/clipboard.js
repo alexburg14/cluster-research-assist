@@ -5,7 +5,9 @@ export async function copyText(text) {
     try {
       await navigator.clipboard.writeText(text);
       return true;
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   const area = document.createElement("textarea");
   area.value = text;

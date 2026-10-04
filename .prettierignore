@@ -1,0 +1,15 @@
+.claude/
+.tox/
+.venv/
+build/
+dist/
+journal/
+logs/
+package-lock.json
+# prettier cannot parse Jinja; djlint lints the templates
+*.html
+# prettier pads tables to their widest cell, which wrecks the wide ones
+*.md
+tests/data/
+src/cra/core/retrieval/
+src/cra/app/history/migrations/
