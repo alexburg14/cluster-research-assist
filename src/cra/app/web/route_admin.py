@@ -371,9 +371,10 @@ async def upload_library() -> Any:
     except LibraryError as exc:
         await asyncio.to_thread(_discard, installed)
         return _bad(str(exc))
+    serving = await ctx.prepare(library)
 
     await asyncio.to_thread(versioning.activate, root, installed.name)
-    ctx.library = library
+    ctx.install(serving)
     await asyncio.to_thread(versioning.prune, root, ctx.settings.library_keep_versions)
     log.info(
         "library replaced",
@@ -400,10 +401,11 @@ async def activate_library(version: str) -> Any:
         library = await asyncio.to_thread(
             Library.load, target, required_schema=ctx.settings.library_require_schema
         )
+        serving = await ctx.prepare(library)
         await asyncio.to_thread(versioning.activate, root, version)
     except (versioning.LibraryLayoutError, LibraryError) as exc:
         return _bad(str(exc), 404 if not target.exists() else 400)
-    ctx.library = library
+    ctx.install(serving)
     log.info(
         "library version activated",
         extra={"fields": {"version": version, "by": g.principal.user_id}},

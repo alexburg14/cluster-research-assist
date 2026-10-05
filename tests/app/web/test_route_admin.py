@@ -5,6 +5,7 @@ from conftest import make_settings, sign_in
 
 from cra.app.policy import KEYS, Policy
 from cra.app.web.factory import create_app
+from cra.core.tools.tiers import Tier
 
 
 @pytest.fixture
@@ -257,6 +258,7 @@ async def test_uploading_a_bundle_replaces_the_live_library(updatable, tmp_path)
     from library_builder import PAPERS, write_library
 
     app, client, _ = updatable
+    prompt_before = app.extensions["cra"].system_prompt
     smaller = write_library(tmp_path / "smaller")
     (smaller / "pis.json").write_text("[]")
     import json as json_module
@@ -278,6 +280,15 @@ async def test_uploading_a_bundle_replaces_the_live_library(updatable, tmp_path)
     assert app.extensions["cra"].library.counts["pis"] == 0
     health = await json_of(await client.get("/api/health"))
     assert health["library"]["pis"] == 0
+
+    # and so do the tools and the prompt, not only the pages reading the library
+    cra = app.extensions["cra"]
+    assert cra.indexes.library is cra.library
+    status = await cra.registry.call(
+        "library_status", {}, cra.tool_context(Tier.PUBLIC)
+    )
+    assert status["counts"]["pis"] == 0
+    assert cra.system_prompt != prompt_before
 
     listing = await json_of(await client.get("/api/admin/library"))
     assert [v["name"] for v in listing["versions"] if v["active"]] == [body["version"]]
@@ -311,7 +322,7 @@ async def test_an_archive_without_a_bundle_is_refused(updatable, tmp_path):
 
 
 async def test_rolling_back_to_an_earlier_version(updatable, tmp_path):
-    _, client, _ = updatable
+    app, client, _ = updatable
     first = (await json_of(await client.get("/api/admin/library")))["versions"][0][
         "name"
     ]
@@ -326,6 +337,9 @@ async def test_rolling_back_to_an_earlier_version(updatable, tmp_path):
     assert (await json_of(response))["version"] == first
     listing = await json_of(await client.get("/api/admin/library"))
     assert [v["name"] for v in listing["versions"] if v["active"]] == [first]
+    cra = app.extensions["cra"]
+    assert cra.indexes.library is cra.library
+    assert cra.library.path.name == first
 
 
 async def test_activating_an_unknown_version_is_a_404(updatable):
