@@ -116,6 +116,32 @@ SECURITY_HEADERS = {
 HSTS = "max-age=31536000"
 
 
+@dataclass(frozen=True)
+class Serving:
+    """A library together with everything built from it.
+
+    Built in full before it replaces anything, so a request sees either the
+    old library throughout or the new one, never one's tools over the
+    other's papers.
+    """
+
+    library: Library
+    indexes: Indexes
+    registry: Registry
+    system_prompt: str
+
+    @classmethod
+    def build(
+        cls, settings: Settings, library: Library, encoder: Encoder | None
+    ) -> "Serving":
+        indexes = Indexes.build(library, encoder)
+        registry = load_tools(settings, indexes)
+        system_prompt = prompt_.build(
+            settings, library, {spec.name for spec in registry}
+        )
+        return cls(library, indexes, registry, system_prompt)
+
+
 class LimitedRequest(Request):
     """The body limit is fixed when the request is built, before routing, so
     the one route that takes a bundle is told apart by its path here."""
@@ -179,6 +205,18 @@ class AppContext:
 
         task.add_done_callback(finished)
         return task
+
+    async def prepare(self, library: Library) -> Serving:
+        """Build the indexes, tools and prompt for ``library`` off the event
+        loop, reusing the query encoder already loaded."""
+        encoder = self.indexes.encoder if self.indexes is not None else None
+        return await asyncio.to_thread(Serving.build, self.settings, library, encoder)
+
+    def install(self, serving: Serving) -> None:
+        self.library = serving.library
+        self.indexes = serving.indexes
+        self.registry = serving.registry
+        self.system_prompt = serving.system_prompt
 
     def tool_context(self, tier: Tier) -> ToolContext:
         if self.indexes is None:
@@ -305,17 +343,15 @@ def create_app(settings: Settings, engine: AsyncEngine | None = None) -> Quart:
     @app.before_serving
     async def start() -> None:
         try:
-            ctx.library = await asyncio.to_thread(
+            library = await asyncio.to_thread(
                 Library.load,
                 ctx.settings.library_path,
                 required_schema=ctx.settings.library_require_schema,
             )
-            ctx.indexes = await asyncio.to_thread(
-                Indexes.build, ctx.library, _encoder(ctx.settings)
-            )
-            ctx.registry = load_tools(ctx.settings, ctx.indexes)
-            ctx.system_prompt = prompt_.build(
-                ctx.settings, ctx.library, {spec.name for spec in ctx.registry}
+            ctx.install(
+                await asyncio.to_thread(
+                    Serving.build, ctx.settings, library, _encoder(ctx.settings)
+                )
             )
             await _check_schema(ctx)
             ctx.policy = await Policy.load(ctx.settings, ctx.repo)
