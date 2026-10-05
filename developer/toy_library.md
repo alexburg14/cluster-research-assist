@@ -73,6 +73,9 @@ uv pip install --python /tmp/cra-toy/venv/bin/python \
 cra library build tests/data/library   # publication map and manifest.json
 ```
 
+The bundle stays in the 1.x layout (`papers.csv` plus `abstracts.json`), so the
+tests keep one real-shaped 1.x library; `cra library migrate` converts it.
+
 The script resolves each title through the arXiv API (falling back to the
 pinned id), reads licences from the arXiv OAI endpoint, downloads CC BY PDFs,
 and embeds `f"{title}. {abstract}"` with `BAAI/bge-small-en-v1.5`
