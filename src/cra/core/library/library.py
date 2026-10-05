@@ -15,6 +15,7 @@ import numpy as np
 from networkx.readwrite import json_graph
 
 from cra.core.library import manifest as manifest_
+from cra.core.library import normalise
 from cra.core.library.records import (
     PI,
     Dataset,
@@ -184,12 +185,10 @@ def _load_papers(path: Path, abstracts: dict[str, dict[str, Any]]) -> dict[str, 
     papers = {}
     for doi, raw in rows.items():
         cached = abstracts.get(doi) or {}
-        # OpenAlex author names are clean UTF-8 where the scraped CSV truncates them
-        authors = tuple(cached.get("authors") or ()) or raw["authors"]
         papers[doi] = Paper(
             doi=doi,
             title=raw["title"],
-            authors=authors,
+            authors=normalise.authors(raw["authors"], cached),
             year=raw["year"],
             journal=cached.get("journal") or "",
             citation_count=cached.get("citation_count"),
@@ -229,11 +228,7 @@ def _load_pis(raw: list[dict[str, Any]]) -> tuple[PI, ...]:
             profile_url=entry.get("profile_url", ""),
             research_focus=tuple(entry.get("research_focus") or ()),
             application_fields=tuple(entry.get("application_fields") or ()),
-            publication_dois=tuple(
-                dict.fromkeys(
-                    normalise_doi(d) for d in entry.get("publication_dois") or ()
-                )
-            ),
+            publication_dois=normalise.unique_dois(entry.get("publication_dois") or ()),
         )
         for entry in raw
     )
@@ -261,15 +256,7 @@ def _load_embeddings(path: Path) -> Embeddings | None:
 def _load_graph(raw: dict[str, Any] | None) -> nx.Graph | None:
     if raw is None:
         return None
-    graph = json_graph.node_link_graph(raw, edges="links")
-    # The builder that scraped the shared DOIs left a stray brace on some, so
-    # one paper appears twice on an edge and the weight counts it twice.
-    for _, _, data in graph.edges(data=True):
-        if "shared_dois" in data:
-            unique = tuple(dict.fromkeys(normalise_doi(d) for d in data["shared_dois"]))
-            data["shared_dois"] = list(unique)
-            data["weight"] = len(unique)
-    return graph
+    return normalise.graph_edges(json_graph.node_link_graph(raw, edges="links"))
 
 
 def _load_map(raw: dict[str, Any] | None) -> PublicationMap | None:
