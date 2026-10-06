@@ -305,9 +305,24 @@ function closeOnBackdropClick(dlg) {
   });
 }
 
+/** Enter in a field implicitly submits a method=dialog form through its first
+ *  submit button, the ✕, so the dialog closes and the edits are lost. Fields
+ *  with an action bind Enter themselves and prevent the default; for the rest
+ *  Enter does nothing. */
+function keepOpenOnEnter(dlg) {
+  dlg.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.defaultPrevented && e.target.tagName === "INPUT") {
+      e.preventDefault();
+    }
+  });
+}
+
 export function initDialogs(s) {
   store = s;
-  for (const dlg of document.querySelectorAll("dialog.dlg")) closeOnBackdropClick(dlg);
+  for (const dlg of document.querySelectorAll("dialog.dlg")) {
+    closeOnBackdropClick(dlg);
+    keepOpenOnEnter(dlg);
+  }
   syncControls(currentTheme());
   document.getElementById("theme-seg").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-theme]");
@@ -332,9 +347,8 @@ export function initDialogs(s) {
     menu.open = false;
     openSettings();
   });
-  // absent when the deployment describes no pipeline
   const box = document.getElementById("pipeline-box");
-  box?.addEventListener("toggle", () => {
+  box.addEventListener("toggle", () => {
     const f = document.getElementById("pipeline-frame");
     if (box.open && !f.src) {
       f.src = f.dataset.src;
@@ -344,12 +358,14 @@ export function initDialogs(s) {
   document.getElementById("connect-submit").addEventListener("click", submitRegister);
   document.getElementById("connect-token-submit").addEventListener("click", submitToken);
   document.getElementById("connect-disconnect").addEventListener("click", disconnect);
-  document.getElementById("connect-key").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      submitRegister();
-    }
-  });
+  for (const id of ["connect-base", "connect-key"]) {
+    document.getElementById(id).addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        submitRegister();
+      }
+    });
+  }
   document.getElementById("connect-token").addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -359,6 +375,13 @@ export function initDialogs(s) {
   document.getElementById("feedback-submit").addEventListener("click", submitFeedback);
   document.getElementById("params-apply").addEventListener("click", applyParams);
   document.getElementById("params-reset").addEventListener("click", resetParams);
+  // the fields are rebuilt on every open, so listen on their container
+  document.getElementById("params-body").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && e.target.tagName === "INPUT") {
+      e.preventDefault();
+      applyParams();
+    }
+  });
 }
 
 // ---------- settings row ----------
